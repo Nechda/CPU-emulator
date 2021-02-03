@@ -1,13 +1,13 @@
-;movw edi, [0x3FE] ;считываем количество колонок <-> x
+;movw edi, [0x3FE] ;СЃС‡РёС‚С‹РІР°РµРј РєРѕР»РёС‡РµСЃС‚РІРѕ РєРѕР»РѕРЅРѕРє <-> x
 ;div edi, 2
-;movw esi, [0x3FC] ;считваем количество линий <-> y
+;movw esi, [0x3FC] ;СЃС‡РёС‚РІР°РµРј РєРѕР»РёС‡РµСЃС‚РІРѕ Р»РёРЅРёР№ <-> y
 ;div esi, 2
 
 
 fpmon
 jmp main
 
-;рисует символ из ebp по координатам (eax,ebx)
+;СЂРёСЃСѓРµС‚ СЃРёРјРІРѕР» РёР· ebp РїРѕ РєРѕРѕСЂРґРёРЅР°С‚Р°Рј (eax,ebx)
 draw_symbol:
 	fpmoff
 	mov edx, 0x400
@@ -38,7 +38,7 @@ main:
 
 	push esi
 	mov esi, 0.0
-	movw esi, [0x3FC] ;считваем количество линий <-> y
+	movw esi, [0x3FC] ;СЃС‡РёС‚РІР°РµРј РєРѕР»РёС‡РµСЃС‚РІРѕ Р»РёРЅРёР№ <-> y
 	float esi
 	cmp ebx, esi
 	jae invert_y_vel
@@ -55,7 +55,7 @@ main:
 
 	push esi
 	mov esi, 0.0
-	movw esi, [0x3FE] ;считваем количество колонок <-> x
+	movw esi, [0x3FE] ;СЃС‡РёС‚РІР°РµРј РєРѕР»РёС‡РµСЃС‚РІРѕ РєРѕР»РѕРЅРѕРє <-> x
 	float esi
 	cmp eax, esi
 	jae invert_x_vel
