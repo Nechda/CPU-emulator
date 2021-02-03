@@ -1,0 +1,64 @@
+movw edi, [0x3FE] ;считываем количество колонок <-> x
+div edi, 2
+movw esi, [0x3FC] ;считваем количество линий <-> y
+div esi, 2
+
+mov ebp, 43
+
+fpmon
+jmp main
+
+;рисует символ из ebp по координатам (eax,ebx)
+draw_symbol:
+	fpmoff
+	mov edx, 0x400
+	mul ebx, edi
+	mul ebx, 2
+	add eax, ebx
+	add edx, eax
+	movb [edx], ebp
+	fpmon
+	ret
+
+main:
+	mov ecx, 0.0   ;
+	mov edx, 30.0   ; radius
+	label_loop:
+	
+
+	mov eax, ecx
+	mul eax, 4.631
+	sin eax
+	mul eax, edx
+	mov ebx, eax
+	trunc ebx
+	fpmoff
+	add ebx, esi
+	fpmon
+
+	mov eax, ecx
+	mul eax, 10.295
+	cos eax
+	mul eax, edx
+	;mov eax, eax
+	trunc eax
+	fpmoff
+	add eax, edi
+	fpmon
+	
+
+	push eax
+	push ebx
+	push edx
+	call draw_symbol
+	pop edx
+	pop ebx
+	pop eax
+
+	add ecx, 0.01
+
+	cmp ecx, 15.0
+	jbe label_loop
+	jmp exit
+exit:
+	hlt
