@@ -9,7 +9,7 @@
 
 
 /*
-\brief Коды ошибок, возвращаемые процессором
+\brief РљРѕРґС‹ РѕС€РёР±РѕРє, РІРѕР·РІСЂР°С‰Р°РµРјС‹Рµ РїСЂРѕС†РµСЃСЃРѕСЂРѕРј
 */
 enum CPUerror
 {
@@ -66,7 +66,7 @@ public:
             ui32 esp;
             ui32 ebp;
             ui32 eip;
-            ui32 efl; ///< сокращение от eflags
+            ui32 efl; ///< СЃРѕРєСЂР°С‰РµРЅРёРµ РѕС‚ eflags
             ui32 ecs;
             ui32 eds;
             ui32 ess;
@@ -83,7 +83,7 @@ public:
 C_string getStringByErrorCode(CPUerror errorCode);
 
 /*
-\brief номера битов в регистре EFLAGS
+\brief РЅРѕРјРµСЂР° Р±РёС‚РѕРІ РІ СЂРµРіРёСЃС‚СЂРµ EFLAGS
 */
 const ui8 FLAG_CF = 0;
 const ui8 FLAG_ZF = 6;

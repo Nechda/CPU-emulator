@@ -17,14 +17,14 @@
 
 
 /**
-\brief Константы, описывающие коды ошибок, возникающие в main
+\brief РљРѕРЅСЃС‚Р°РЅС‚С‹, РѕРїРёСЃС‹РІР°СЋС‰РёРµ РєРѕРґС‹ РѕС€РёР±РѕРє, РІРѕР·РЅРёРєР°СЋС‰РёРµ РІ main
 */
 const ui8 ERROR_INIT_INPUT_STREAM           = 1 << 0;
 const ui8 ERROR_INIT_OUTPUT_STREAM          = 1 << 1;
 const ui8 ERROR_JUMP_DEFAULT_CASE_IN_SWITCH = 1 << 2;
 
 /**
-\brief Функция запускает вывод справки по программе
+\brief Р¤СѓРЅРєС†РёСЏ Р·Р°РїСѓСЃРєР°РµС‚ РІС‹РІРѕРґ СЃРїСЂР°РІРєРё РїРѕ РїСЂРѕРіСЂР°РјРјРµ
 */
 void run_Helper()
 {
@@ -55,7 +55,7 @@ void run_Helper()
 }
 
 /**
-\brief Функция запускает компилятор
+\brief Р¤СѓРЅРєС†РёСЏ Р·Р°РїСѓСЃРєР°РµС‚ РєРѕРјРїРёР»СЏС‚РѕСЂ
 */
 int run_Compilator(char* buffer, FILE* outStream, const InputParams inputParams)
 {$
@@ -69,7 +69,7 @@ int run_Compilator(char* buffer, FILE* outStream, const InputParams inputParams)
 }
 
 /**
-\brief Функция запускает дизасемблер
+\brief Р¤СѓРЅРєС†РёСЏ Р·Р°РїСѓСЃРєР°РµС‚ РґРёР·Р°СЃРµРјР±Р»РµСЂ
 */
 int run_Disassembler(char* buffer,unsigned nBytes, FILE* outStream, const InputParams inputParams)
 {$
@@ -83,7 +83,7 @@ int run_Disassembler(char* buffer,unsigned nBytes, FILE* outStream, const InputP
 }
 
 /**
-\brief Функция запускает эмулятор процессора
+\brief Р¤СѓРЅРєС†РёСЏ Р·Р°РїСѓСЃРєР°РµС‚ СЌРјСѓР»СЏС‚РѕСЂ РїСЂРѕС†РµСЃСЃРѕСЂР°
 */
 int run_CPU(char* buffer, unsigned nBytes, const InputParams inputParams)
 {$
@@ -98,7 +98,7 @@ int run_CPU(char* buffer, unsigned nBytes, const InputParams inputParams)
 }
 
 /**
-\brief Функция инициализирует поток ввода, основываясь на данных из InputParams
+\brief Р¤СѓРЅРєС†РёСЏ РёРЅРёС†РёР°Р»РёР·РёСЂСѓРµС‚ РїРѕС‚РѕРє РІРІРѕРґР°, РѕСЃРЅРѕРІС‹РІР°СЏСЃСЊ РЅР° РґР°РЅРЅС‹С… РёР· InputParams
 */
 int initInStream(char* inputFileName,char** buffer, unsigned* readBytes, const InputParams inputParams)
 {$
@@ -131,7 +131,7 @@ int initInStream(char* inputFileName,char** buffer, unsigned* readBytes, const I
 }
 
 /**
-\brief Функция инициализирует поток вывода, основываясь на данных из InputParams
+\brief Р¤СѓРЅРєС†РёСЏ РёРЅРёС†РёР°Р»РёР·РёСЂСѓРµС‚ РїРѕС‚РѕРє РІС‹РІРѕРґР°, РѕСЃРЅРѕРІС‹РІР°СЏСЃСЊ РЅР° РґР°РЅРЅС‹С… РёР· InputParams
 */
 int initOutStream(char* outputFileName, FILE** outStreamPtr, char* mode,InputParams inputParams)
 {$
@@ -181,7 +181,7 @@ int main(int argc, char** argv)
     unsigned inputFileSize = 0;
     FILE* outStream = NULL;
     
-    //Смотрим какая программа была выбрана
+    //РЎРјРѕС‚СЂРёРј РєР°РєР°СЏ РїСЂРѕРіСЂР°РјРјР° Р±С‹Р»Р° РІС‹Р±СЂР°РЅР°
     switch (inputParams.programName)
     {
         case PROG_COPMILATOR:
@@ -214,7 +214,7 @@ int main(int argc, char** argv)
     }
 
     #ifdef CPU_GRAPH_MODE
-    //Вспомогательная инициализация
+    //Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅР°СЏ РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ
     if (inputParams.useGraphMode)
     {
         glutInit(&argc, argv);
@@ -222,7 +222,7 @@ int main(int argc, char** argv)
     }
     #endif
 
-    //Производим выполнение программы
+    //РџСЂРѕРёР·РІРѕРґРёРј РІС‹РїРѕР»РЅРµРЅРёРµ РїСЂРѕРіСЂР°РјРјС‹
     switch (inputParams.programName)
     {
         case PROG_COPMILATOR:

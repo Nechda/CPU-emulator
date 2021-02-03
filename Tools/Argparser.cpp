@@ -4,7 +4,7 @@
 #include <string.h>
 
 /**
-\brief  Функция парса конфигурационного файла
+\brief  Р¤СѓРЅРєС†РёСЏ РїР°СЂСЃР° РєРѕРЅС„РёРіСѓСЂР°С†РёРѕРЅРЅРѕРіРѕ С„Р°Р№Р»Р°
 */
 void parseConfig(const char* configFileName, InputParams* ptrInParams)
 {
@@ -98,7 +98,7 @@ void parseConfig(const char* configFileName, InputParams* ptrInParams)
 
 
 /**
-\brief  Функция парса аргументов командной строки
+\brief  Р¤СѓРЅРєС†РёСЏ РїР°СЂСЃР° Р°СЂРіСѓРјРµРЅС‚РѕРІ РєРѕРјР°РЅРґРЅРѕР№ СЃС‚СЂРѕРєРё
 */
 void parseConsoleArguments(int argc, char** argv, InputParams* ptrInParams)
 {

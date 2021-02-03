@@ -28,10 +28,10 @@ const ui32 REGISTER_TABLE_SIZE = sizeof(registerTable) / sizeof(Lexema);
 
 
 /*
-\brief  Функция присваивает машинной команде тип операнда
-\param  [in]  ptrMarchCode  Указатель на машинную команду
-\param  [in]  opIndex       Номер операнда
-\param  [in]  type          Тип операнда
+\brief  Р¤СѓРЅРєС†РёСЏ РїСЂРёСЃРІР°РёРІР°РµС‚ РјР°С€РёРЅРЅРѕР№ РєРѕРјР°РЅРґРµ С‚РёРї РѕРїРµСЂР°РЅРґР°
+\param  [in]  ptrMarchCode  РЈРєР°Р·Р°С‚РµР»СЊ РЅР° РјР°С€РёРЅРЅСѓСЋ РєРѕРјР°РЅРґСѓ
+\param  [in]  opIndex       РќРѕРјРµСЂ РѕРїРµСЂР°РЅРґР°
+\param  [in]  type          РўРёРї РѕРїРµСЂР°РЅРґР°
 */
 void Assembler::setOperandType(Command& cmd, ui8 opIndex, OperandType type)
 {
@@ -43,10 +43,10 @@ void Assembler::setOperandType(Command& cmd, ui8 opIndex, OperandType type)
 
 
 /*
-\brief  Функция определяет тип операнда по машинной команде
-\param  [in]  marchCode  Машинная команда
-\param  [in]  opIndex    Номер операнда
-\return Тип операнда, имеющий индекс opIndex
+\brief  Р¤СѓРЅРєС†РёСЏ РѕРїСЂРµРґРµР»СЏРµС‚ С‚РёРї РѕРїРµСЂР°РЅРґР° РїРѕ РјР°С€РёРЅРЅРѕР№ РєРѕРјР°РЅРґРµ
+\param  [in]  marchCode  РњР°С€РёРЅРЅР°СЏ РєРѕРјР°РЅРґР°
+\param  [in]  opIndex    РќРѕРјРµСЂ РѕРїРµСЂР°РЅРґР°
+\return РўРёРї РѕРїРµСЂР°РЅРґР°, РёРјРµСЋС‰РёР№ РёРЅРґРµРєСЃ opIndex
 */
 OperandType Assembler::getOperandType(Command cmd, ui8 opIndex)
 {
@@ -58,9 +58,9 @@ OperandType Assembler::getOperandType(Command cmd, ui8 opIndex)
 
 
 /*
-\brief  Функция возвращает поясняющую строку, по коду ошибки компилятора\дизасемблера
-\param  [in]  errorCode  Код ошибки
-\return Возвращается строка, поясняющее код ошибки
+\brief  Р¤СѓРЅРєС†РёСЏ РІРѕР·РІСЂР°С‰Р°РµС‚ РїРѕСЏСЃРЅСЏСЋС‰СѓСЋ СЃС‚СЂРѕРєСѓ, РїРѕ РєРѕРґСѓ РѕС€РёР±РєРё РєРѕРјРїРёР»СЏС‚РѕСЂР°\РґРёР·Р°СЃРµРјР±Р»РµСЂР°
+\param  [in]  errorCode  РљРѕРґ РѕС€РёР±РєРё
+\return Р’РѕР·РІСЂР°С‰Р°РµС‚СЃСЏ СЃС‚СЂРѕРєР°, РїРѕСЏСЃРЅСЏСЋС‰РµРµ РєРѕРґ РѕС€РёР±РєРё
 */
 C_string Assembler::getStringByErrorCode(AsmError errorCode)
 {
