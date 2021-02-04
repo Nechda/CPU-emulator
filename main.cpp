@@ -94,6 +94,7 @@ int run_CPU(char* buffer, unsigned nBytes, const InputParams inputParams)
     printf("CPU finished with the code: %d (%s)\n", errorCode, getStringByErrorCode(static_cast<CPUerror>(errorCode)));
     if (!inputParams.noLogFileFlag && errorCode)
         printf("More infromation see in log file: %s\n", inputParams.logFilename);
+    CPU::Instance().dump();
     $$ return errorCode;
 }
 

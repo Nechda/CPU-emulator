@@ -183,6 +183,7 @@ CPU::~CPU()
     myCPU.isValid = 0;
 }
 
+
 /*
 \brief Функция, производящая дамп процессора, результат закидывается в outStream
 \param [in] outStream указатель на поток вывода
@@ -202,7 +203,7 @@ void CPU::dump()
     printRegInfo(efl);printRegInfo(ecs);printRegInfo(eds);printRegInfo(esp);
     #undef printRegInfo
     fprintf(outStream, "    }\n");
-   
+
     #ifdef DUMP_PRINT_MEMORY
     fprintf(outStream, "    RAM:\n");
     fprintf(outStream, "    Segment offset |  0x00  0x01  0x02  0x03  0x04  0x05  0x06  0x07  0x08  0x09  0x0A  0x0B  0x0C  0x0D  0x0E  0x0F\n");
@@ -263,7 +264,7 @@ void getOperandsPointer(Command* cmd, OperandUnion** dst, OperandUnion** src)
             break;
         case OPERAND_MEMORY:
             offset = myCPU.Register.eds;
-            offset += myCPU.isFloatPointMath ? static_cast<ui32>(cmd->operand[i].fvalue) : cmd->operand[i].ivalue;
+            offset += cmd->operand[i].ivalue;
             if (offset+sizeof(ui32) >= myCPU.ramSize)
             {
                 Assert_c(!"The command tries to access a nonexistent memory area!");

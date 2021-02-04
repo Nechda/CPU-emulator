@@ -393,6 +393,9 @@ static AsmError genBytes(const char* codeLine, Label* lables, ui32 nLables, ui8*
         }
 
         cmd.code.marchCode = *((Mcode*)ptr);
+        #ifdef COMPILATOR_PRINT_COMMANDS
+            Disassembler::Instance().disasmCommand(cmd, stdout);
+        #endif
         currentPosition += sizeof(Mcode);
         for (int i = 0; i < cmd.code.bits.nOperands; i++)
         {

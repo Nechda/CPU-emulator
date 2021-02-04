@@ -44,7 +44,6 @@ public:
     static struct CPUStruct
     {
         bool isValid = 0;
-        bool isFloatPointMath = 0;
         int  interruptCode = 0;
         bool stepByStep = 0;
         bool isGraphMode = 0;
@@ -57,18 +56,9 @@ public:
         ui32 ramSize = 8;
         struct
         {
-            ui32 eax;
-            ui32 ebx;
-            ui32 ecx;
-            ui32 edx;
-            ui32 esi;
-            ui32 edi;
-            ui32 esp;
-            ui32 ebp;
-            ui32 eip;
-            ui32 efl; ///< сокращение от eflags
-            ui32 ecs;
-            ui32 eds;
+            ui32 eax; ui32 ebx; ui32 ecx; ui32 edx;
+            ui32 esi; ui32 edi; ui32 esp; ui32 ebp;
+            ui32 eip; ui32 efl; ui32 ecs; ui32 eds;
             ui32 ess;
         }Register;
         ui8* RAM = NULL;

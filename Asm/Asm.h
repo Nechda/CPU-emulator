@@ -10,6 +10,7 @@ const int ASM_ERROR_CODE = -1;
 
 using std::vector;
 
+//#define COMPILATOR_PRINT_COMMANDS ///< Компилятор будет печатать команды, которые распарсил
 
 
 namespace Assembler
