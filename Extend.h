@@ -25,8 +25,8 @@
 
 
          Структура кодирования команд в машинном коде:
-         bytes:            8                    2             2                       2                    2
-         description: command general code | reseved |type of second operand | type of first operand  | nOperands
+         bytes:            8                    1               1                    2                       2                    2
+         description: command general code | reserved | long memory command |type of second operand | type of first operand  | nOperands
 
          Кодирование типов операндов в машинном коде:
          0b00 --- operand is register
@@ -34,6 +34,20 @@
          0b10 --- operand is memory, based by number
          0b11 --- operand is memory, based by register
 
+         Бит long memory command:
+         0b1  --- if operands are mem based by register, then code become longer
+              first 8 bits it's register number then 32 bits for describing offset.
+              Example:
+              mov eax, 0x10
+              mov ebx, [eax + 0x04]
+              ; second operand is coded as 0b00000001 0b00000000 0b00000000 0b00000000 0b00000100
+
+              Note: if long memory bit is 1 then all operands which type is mem by register are coding as described above
+              Example:
+              mov [eax + 0x3],[ebx + 0x8]
+              ; first operand:  0b00000001 0b00000000 0b00000000 0b00000000 0b00000011
+              ; second operand: 0b00000002 0b00000000 0b00000000 0b00000000 0b00001000
+        0b0 --- in this situation operands coding without addition information
 
          Типы символов в строках vSrt:
          R --- operand is Register
@@ -388,8 +402,10 @@ DEF(
     DUMP,
     make_code(0,26,0), "", "",
     {
-        //cpuDump(stdout);
-        system("pause");
+        glFlush();
+        glClear(GL_COLOR_BUFFER_BIT);
+        //CPU::Instance().dump(stdout);
+        //system("pause");
     }
 )
 
@@ -426,7 +442,7 @@ DEF(
         getOperandsPointer(cmd, &dst, &src);
         isFiniteOperands();
         isInterruptOccur();
-        dst->ivalue = static_cast<float>(dst->fvalue);
+        dst->ivalue = static_cast<int>(dst->fvalue);
     }
 )
 
@@ -569,7 +585,7 @@ DEF(
         OperandUnion* src = NULL;
         getOperandsPointer(cmd, &src, &dst);
         isInterruptOccur();
-        dst->fvalue *= dst->fvalue < 0 ? -1.0f : 1.0f;
+        dst->fvalue = fabs(dst->fvalue);
     }
 )
 
@@ -586,3 +602,96 @@ DEF(
         dst->fvalue = powf(dst->fvalue, src->fvalue);
     }
 )
+
+DEF(
+    ATAN2,
+    make_code(FPU_ISA_START_CODE, 13,2), "RMB", "RNMB",
+    {
+        OperandUnion* dst = NULL;
+        OperandUnion* src = NULL;
+        getOperandsPointer(cmd, &dst, &src);
+        isFiniteOperands();
+        isInterruptOccur();
+        dst->fvalue = atan2(dst->fvalue,src->fvalue);
+    }
+)
+
+DEF(
+    MOD,
+    make_code(FPU_ISA_START_CODE, 14, 2), "RMB", "RNMB",
+    {
+        OperandUnion* dst = NULL;
+        OperandUnion* src = NULL;
+        getOperandsPointer(cmd, &dst, &src);
+        isInterruptOccur();
+        dst->ivalue %= (int)src->ivalue;
+    }
+)
+
+
+// ==========================================================
+
+//                 Improved SIMD operations
+
+// ==========================================================
+
+
+#define ISIMD_ISA_START_CODE 43
+
+#define PUSH_REGISTER(reg)\
+{\
+    ui8* data = (ui8*)&myCPU.Register.##reg;\
+    for (ui8 i = 0; i < sizeof(ui32); i++)\
+        stackPush(&myCPU.stack, &data[i]);\
+}
+
+DEF(
+    PUSHA,
+    make_code(ISIMD_ISA_START_CODE, 0, 0), "","",
+    {
+        isInterruptOccur();
+        
+    printf("it's pusha\n");
+
+        PUSH_REGISTER(eax)
+        PUSH_REGISTER(ebx)
+        PUSH_REGISTER(ecx)
+        PUSH_REGISTER(edx)
+        PUSH_REGISTER(esi)
+        PUSH_REGISTER(edi)
+        PUSH_REGISTER(ebp)
+        
+
+        myCPU.Register.esp += 7 * sizeof(ui32);
+    }
+)
+#undef PUSH_REGISTER
+
+#define POP_REGISTER(reg)\
+{\
+    ui8* data = (ui8*)&myCPU.Register.##reg;\
+    for (ui8 i = 0; i < sizeof(ui32); i++)\
+        stackPop(&myCPU.stack, &data[sizeof(ui32) - 1 - i]);\
+}
+
+DEF(
+    POPA,
+    make_code(ISIMD_ISA_START_CODE, 1, 0), "", "",
+    {
+        isInterruptOccur();
+        
+    printf("it's popa\n");
+
+
+        POP_REGISTER(ebp)
+        POP_REGISTER(edi)
+        POP_REGISTER(esi)
+        POP_REGISTER(edx)
+        POP_REGISTER(ecx)
+        POP_REGISTER(ebx)
+        POP_REGISTER(eax)
+
+        myCPU.Register.esp -= 7 * sizeof(ui32);
+    }
+)
+#undef POP_REGISTER

@@ -6,25 +6,56 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-#include <GL\freeglut.h>
-
 #include "Asm/Asm.h"
 #include "CPU/CPU.h"
+#include "CPUInfo.h"
 #include "Stack/Stack_kernel.h"
 #define TYPE_ ui8
 #include "Stack/Stack.h"
 #undef TYPE_
+
+#include <iostream>
 
 using namespace Assembler;
 
 CPU::CPUStruct CPU::myCPU = {};
 CPU::CPUStruct& myCPU = CPU::myCPU;
 
+#ifdef CPU_GRAPH_MODE
+#include <GL\freeglut.h>
+#endif
+
+#define CPU_SMART_PRINT_MEMORY
+#ifdef CPU_SMART_PRINT_MEMORY
+#include <Windows.h>
+
+enum ConsoleColour
+{
+    BLACK, BLUE, GREEN, CYAN,
+    RED, MAGENTA, BROWN, LIGHTGRAY,
+    DARKGRAY, LIGHTBLUE, LIGHTGREEN,
+    LIGHTCYAN, LIGHTRED, LIGHTMAGENTA,
+    YELLOW, WHITE
+};
+
+static void setConsoleColor(int fontColour)
+{
+    WORD wColor = (fontColour & 0x0F);
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), wColor);
+}
+
+#define SET_DARK_GRAY setConsoleColor(8)
+#define SET_WHITE     setConsoleColor(15)
+#define RESET_COLOUR  setConsoleColor(7)
+
+#endif
+
 /*
 \brief Константы, определяющие работу процессора
 @{
 */
 const Mcode ASM_HLT = 0 << 6 | 0 << 4 | 0 << 2 | 0x0; ///< Именно эта команда будет завершать работу процессора
+
 
 #ifdef CPU_GRAPH_MODE
 
@@ -33,7 +64,7 @@ const Mcode ASM_HLT = 0 << 6 | 0 << 4 | 0 << 2 | 0x0; ///< Именно эта �
 \brief Константы, задающие режим работы с графикой
 */
 
-const ui32 VIDEO_MEMORY_PTR = 0x400;    ///< именно в сюда нужно будет писать данные в память, чтобы можно было что-то выводить на экран
+const ui32 VIDEO_MEMORY_PTR = 0xA00;    ///< именно в сюда нужно будет писать данные в память, чтобы можно было что-то выводить на экран
 const ui16 STANDART_FONT_SIZE = 105;    ///< Размер шрифта в юнитах, данная константа получена через glutWidth(...)
 
 void drawFromVideoMemory();///< Функция, которая будет рисовать на экран все, что располагается в видео буффере
@@ -123,7 +154,6 @@ void CPU::init(const InputParams inParam)
         return;
     }
     myCPU.RAM = (ui8*)calloc(myCPU.ramSize, sizeof(ui8));
-    memset(myCPU.RAM, 0, myCPU.ramSize * sizeof(ui8));
     Assert_c(myCPU.RAM);
     if (!myCPU.RAM)
     {
@@ -183,38 +213,42 @@ CPU::~CPU()
     myCPU.isValid = 0;
 }
 
-
 /*
 \brief Функция, производящая дамп процессора, результат закидывается в outStream
 \param [in] outStream указатель на поток вывода
 */
-void CPU::dump()
+void CPU::dump(Stream outStream)
 {
-    FILE* outStream = stdout;
-    Assert_c(outStream);
-    if (!outStream)
-        return;
+    if (outStream ? ferror(outStream) : 1)
+        outStream = stdout;
+
     fprintf(outStream, "CPU{\n");
     fprintf(outStream, "    Registers{\n");
     #define printRegInfo(regName)\
-    fprintf(outStream, "        " #regName ":0x%04X  (int: %d) \t(float: %f)\n", myCPU.Register.##regName,myCPU.Register.##regName,*((float*)&myCPU.Register.##regName))
+    fprintf(outStream, "        " #regName ":0x%08X  (int: %011d) \t(float: %f)\n", myCPU.Register.##regName,myCPU.Register.##regName,*((float*)&myCPU.Register.##regName))
     printRegInfo(eax);printRegInfo(ebx);printRegInfo(ecx);printRegInfo(edx);
     printRegInfo(esi);printRegInfo(edi);printRegInfo(ebp);printRegInfo(eip);
     printRegInfo(efl);printRegInfo(ecs);printRegInfo(eds);printRegInfo(esp);
     #undef printRegInfo
     fprintf(outStream, "    }\n");
-
+   
     #ifdef DUMP_PRINT_MEMORY
     fprintf(outStream, "    RAM:\n");
     fprintf(outStream, "    Segment offset |  0x00  0x01  0x02  0x03  0x04  0x05  0x06  0x07  0x08  0x09  0x0A  0x0B  0x0C  0x0D  0x0E  0x0F\n");
     fprintf(outStream, "    ----------------------------------------------------------------------------------------------------------------\n");
-    for (int i = 0; i < CPU.ramSize ; i += 16)
+    for (int i = 0; i < myCPU.ramSize ; i += 16)
     {
         fprintf(outStream, "    Segment:0x%05X|", i);
         for (int j = 0; j < 16; j++)
         {
-            ui8 data = i + j < CPU.ramSize ? CPU.RAM[i + j] : 0;
+            ui8 data = i + j < myCPU.ramSize ? myCPU.RAM[i + j] : 0;
+            if (!data)
+                SET_DARK_GRAY;
+            else
+                SET_WHITE;
             fprintf(outStream, "  0x%02X", data & 0xFF);
+            RESET_COLOUR;
+            
         }
         fprintf(outStream, "\n");
     }
@@ -288,6 +322,8 @@ void getOperandsPointer(Command* cmd, OperandUnion** dst, OperandUnion** src)
             break;
         case OPERAND_MEM_BY_REG:
             offset = myCPU.Register.eds + static_cast<ui32>(*getRegisterPtr(cmd->operand[i].ivalue));
+            if (cmd->code.bits.longCommand)
+                offset += cmd->extend[i];
             if (offset+sizeof(ui32)>= myCPU.ramSize)
             {
                 Assert_c(!"The command tries to access a nonexistent memory area!");
@@ -295,13 +331,13 @@ void getOperandsPointer(Command* cmd, OperandUnion** dst, OperandUnion** src)
                 break;
             }
             #ifdef CPU_GRAPH_MODE
-            if (CPU.isGraphMode && offset >= VIDEO_MEMORY_PTR && offset <= VIDEO_MEMORY_PTR + sizeof(ui8) * window.nCols * window.nLines)
+            if (myCPU.isGraphMode && offset >= VIDEO_MEMORY_PTR && offset <= VIDEO_MEMORY_PTR + sizeof(ui8) * window.nCols * window.nLines)
             {
-                CPU.isVideoMemoryChanged = 1;
-                CPU.ChangedPixel.x = offset - VIDEO_MEMORY_PTR;
-                CPU.ChangedPixel.y = CPU.ChangedPixel.x;
-                CPU.ChangedPixel.x %= window.nCols;
-                CPU.ChangedPixel.y /= window.nCols;
+                myCPU.isVideoMemoryChanged = 1;
+                myCPU.ChangedPixel.x = offset - VIDEO_MEMORY_PTR;
+                myCPU.ChangedPixel.y = myCPU.ChangedPixel.x;
+                myCPU.ChangedPixel.x %= window.nCols;
+                myCPU.ChangedPixel.y /= window.nCols;
             }
             #endif
             *ptrOperands[i] = (ui32*)&myCPU.RAM[offset];
@@ -372,6 +408,12 @@ CPUerror CPU::evaluate()
                 cmd.operand[index].ivalue = *((ui8*)ptr);
                 myCPU.Register.eip += sizeof(ui8);
                 ptr += sizeof(ui8);
+                if (cmd.code.bits.longCommand && opType == OPERAND_MEM_BY_REG)
+                {
+                    cmd.extend[index] = *((ui32*)ptr);
+                    myCPU.Register.eip += sizeof(ui32);
+                    ptr += sizeof(ui32);
+                }
             }
             if (opType == OPERAND_NUMBER || opType == OPERAND_MEMORY)
             {
@@ -384,7 +426,8 @@ CPUerror CPU::evaluate()
         if (myCPU.stepByStep)
         {
             Disassembler::Instance().disasmCommand(cmd, stdout);
-            dump();
+            Disassembler::Instance().disasmCommand(cmd, logger.getStream());
+            dump(logger.getStream());
             system("pause");
             system("cls");
         }
@@ -394,9 +437,11 @@ CPUerror CPU::evaluate()
         if (indexCalledFunc >= FUNCTION_TABLE_SIZE)
         {
             logger.push("CPU error", "Invalid machine code of command.");
-            dump();
+            dump(logger.getStream());
             return CPU_ERROR_INVALID_COMMAND;
         }
+
+        //profiler.pushCommand(cmd, myCPU.Register.eip);
         runFunction[indexCalledFunc](&cmd);
         ptr = &myCPU.RAM[myCPU.Register.eip];
 
@@ -404,13 +449,13 @@ CPUerror CPU::evaluate()
         {
             logger.push("CPU error", "Catch exception after execution command:");
             Disassembler::Instance().disasmCommand(cmd, logger.getStream());
-            dump();
+            dump(logger.getStream());
             return CPU_ERROR_EXCEPTION;
         }
         if (myCPU.Register.eip >= myCPU.ramSize)
         {
             logger.push("CPU error", "Register epi quite big for RAM.");
-            dump();
+            dump(logger.getStream());
             return CPU_ERROR_EPI_OUT_OF_RANE;
         }
         myCPU.stack.data = &myCPU.RAM[myCPU.Register.ess];
@@ -474,6 +519,12 @@ CPUerror CPU::run(ui8* bytes, ui32 size, ui32 ptrStart)
     myCPU.stack.data = &myCPU.RAM[myCPU.Register.ess];
     myCPU.stack.size = myCPU.Register.esp;
     CPUerror errorCode = evaluate();
+
+    //profiler.getScore();
+    //profiler.makeReport("command_usage_frequency.txt", Profiler::Report::COMMAND_USAGE);
+    //profiler.makeReport("sequence_usage.txt", Profiler::Report::COMMAND_SEQUENCE_USAGE);
+    //profiler.makeReport("temperature.txt", Profiler::Report::REGION_TEMPERATURE);
+    //profiler.makeReport("longest_repeated_string.txt", Profiler::Report::LONGEST_REPEATED_STRING);
     return errorCode;
 }
 
@@ -493,15 +544,25 @@ static inline void renderChar(float x, float y, const char c)
     glPopMatrix();
 }
 
+void RenderString(float x, float y, void *font, const char* string)
+{
+    char *c;
+
+    glColor3f(1,1,1);
+    glRasterPos2f(x, y);
+
+    glutBitmapString(font, (const unsigned char*)string);
+}
+
 
 void drawFromVideoMemory()
 {
     ///если раскомментировать этот кусок, то получится красивый эффект
     
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glColor4f(0, 0, 0, 0.01);
-    glRectf(0, 0, window.winWidth, window.winHeight);
+    //glEnable(GL_BLEND);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //glColor4f(0, 0, 0, 0.01);
+    //glRectf(0, 0, window.winWidth, window.winHeight);
     
 
     
@@ -510,7 +571,6 @@ void drawFromVideoMemory()
     int line = myCPU.ChangedPixel.y;
     renderChar(col * window.fontWidth, window.winHeight - (line+1) * window.fontWidth, string[col + line * window.nCols]);
 
-    glFlush();
 }
 
 #endif

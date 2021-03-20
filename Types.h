@@ -1,20 +1,14 @@
 #pragma once
-/*
-\brief Упростим себе жизнь, введ¤ короткие названи¤ стандартных типов
-@{
-*/
+#include <stdint.h>
+
 typedef unsigned char   ui8;
-typedef unsigned short  ui16;
-typedef unsigned int    ui32;
-typedef unsigned long   ui64;
+typedef uint16_t  ui16;
+typedef uint32_t  ui32;
+typedef uint64_t  ui64;
 
 typedef char    i8;
-typedef short   i16;
-typedef int     i32;
-typedef long    i64;
+typedef int16_t   i16;
+typedef int32_t   i32;
+typedef int64_t   i64;
 
 typedef i8* C_string;
-
-/*
-@}
-*/

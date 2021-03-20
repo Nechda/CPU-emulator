@@ -7,9 +7,13 @@
 #include <ctype.h>
 #include <iostream>
 #include <vector>
+#include <algorithm>
+#include <cctype>
 
 using namespace std;
 using namespace Assembler;
+
+
 
 /*
 \brief  Функция возвращает имя команды, основываясь на машинном коде
@@ -19,9 +23,19 @@ using namespace Assembler;
 */
 static C_string getCommandName(Command cmd)
 {
+    static std::string tmp;
+    tmp = "";
     for (int i = 0; i < COMMAND_TABLE_SIZE; i++)
         if (commandTable[i].machineCode >> 8 == cmd.code.bits.opCode)
-            return (C_string)commandTable[i].command;
+        {
+            tmp = commandTable[i].command;
+            break;
+        }
+    if (tmp.size())
+    {
+        std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c) { return std::tolower(c); });
+        return (C_string)tmp.c_str();
+    }
     return NULL;
 }
 
@@ -62,16 +76,23 @@ AsmError Disassembler::getCode(ui8* bytes, ui32 nBytes, FILE* outStream = stdout
         return ASM_ERROR_CANT_WRITE_INTO_FILE;
 
     ui8* endPtr = bytes + nBytes;
+    endPtr -= sizeof(ui32);
+    ui32 sectionTextSize = *((ui32*)endPtr);
+    //printf("section .text size: %d\n", sectionTextSize);
+    endPtr = bytes + sectionTextSize;
+
     ui8* strPtr = bytes;
     Command cmd;
     C_string commandName = NULL;
     C_string operandStr[2] = { NULL, NULL };
+    char strBuf[32] = {};
 
-    fprintf(outStream, "Offset: Lexema:\n");
+    //fprintf(outStream, "Offset: Lexema:\n");
+    fprintf(outStream, ".text\n");
     while (bytes < endPtr)
     {
         cmd.code.marchCode = *((Mcode*)bytes);
-        fprintf(outStream, "0x%04X: ", bytes - strPtr);
+        //fprintf(outStream, "0x%04X: ", bytes - strPtr);
         bytes += sizeof(Mcode);
         commandName = getCommandName(cmd);
         if (!commandName)
@@ -86,6 +107,8 @@ AsmError Disassembler::getCode(ui8* bytes, ui32 nBytes, FILE* outStream = stdout
             return ASM_ERROR_INVALID_OPERANDS_NUMBER;
         }
 
+
+        fprintf(outStream, "%s ", commandName);
         bool isInvalidOperands = 0;
         for (int i = 0; i < cmd.code.bits.nOperands; i++)
         {
@@ -101,31 +124,61 @@ AsmError Disassembler::getCode(ui8* bytes, ui32 nBytes, FILE* outStream = stdout
             {
                 cmd.operand[i].ivalue = *((ui8*)bytes);
                 bytes += sizeof(ui8);
-                operandStr[i] = getRegisterName(cmd.operand[i].ivalue);
+                if (cmd.code.bits.longCommand && opType == OPERAND_MEM_BY_REG)
+                {
+                    cmd.extend[i] = *((ui32*)bytes);
+                    sprintf(strBuf, "%s+0x%X", getRegisterName(cmd.operand[i].ivalue), cmd.extend[i]);
+                    operandStr[i] = strBuf;
+                    bytes += sizeof(ui32);
+                }
+                else
+                {
+                    operandStr[i] = getRegisterName(cmd.operand[i].ivalue);
+                }
             }
             isInvalidOperands |= !operandStr[i];
-        }
 
-        if (isInvalidOperands)
-        {
-            logger.push("Disassembler error", "Invalid code for operands!");
-            return ASM_ERROR_INVALID_OPERAND_SYNTAX;
-        }
+            if (isInvalidOperands)
+            {
+                logger.push("Disassembler error", "Invalid code for operands!");
+                return ASM_ERROR_INVALID_OPERAND_SYNTAX;
+            }
 
 
-        fprintf(outStream, "%s ", commandName);
-        for (int i = 0; i < cmd.code.bits.nOperands; i++)
-        {
-            OperandType opType = getOperandType(cmd, i);
             if (opType == OPERAND_REGISTER || opType == OPERAND_NUMBER)
                 fprintf(outStream, "%s", operandStr[i]);
             if (opType == OPERAND_MEMORY || opType == OPERAND_MEM_BY_REG)
                 fprintf(outStream, "[%s]", operandStr[i]);
             if (cmd.code.bits.nOperands == 2 && i == 0)
                 fprintf(outStream, ", ");
+
         }
         fprintf(outStream, "\n");
+
+        
     }
+
+
+    ui32 currentByteInDataSection = 0;
+    endPtr = strPtr + nBytes - sizeof(ui32);
+    if(bytes == endPtr)
+        return ASM_OK;
+
+    fprintf(outStream, ".data\n");
+    fprintf(outStream, "@data db ");
+    while (bytes < endPtr)
+    {
+        fprintf(outStream, "0x%02X", *bytes);
+        bytes++;
+        if (bytes != endPtr)
+        {
+            fprintf(outStream, ",%c", ((currentByteInDataSection + 1) % 8) ? ' ' : '\n');
+            fprintf(outStream, "%*s", ((currentByteInDataSection + 1) % 8) ? 0 : 9, "");
+        }
+        currentByteInDataSection++;
+    }
+    fprintf(outStream, "\n%*salloc %d\n", 9, "", nBytes - sizeof(ui32) - sectionTextSize);
+
     return ASM_OK;
 }
 
@@ -154,6 +207,7 @@ void Disassembler::disasmCommand(Command cmd, FILE* outStream = stdout)
 {
     C_string commandName = NULL;
     C_string operandStr[2] = { NULL, NULL };
+    char strBuf[32];
     Assert_c(outStream);
     if (!outStream)
         return;
@@ -171,6 +225,7 @@ void Disassembler::disasmCommand(Command cmd, FILE* outStream = stdout)
         return;
     }
 
+    fprintf(outStream, "%s ", commandName);
     bool isInvalidOperands = 0;
     for (int i = 0; i < cmd.code.bits.nOperands; i++)
     {
@@ -178,20 +233,25 @@ void Disassembler::disasmCommand(Command cmd, FILE* outStream = stdout)
         if (opType == OPERAND_NUMBER || opType == OPERAND_MEMORY)
             operandStr[i] = getStrByNumber(cmd.operand[i].ivalue);
         if (opType == OPERAND_REGISTER || opType == OPERAND_MEM_BY_REG)
-            operandStr[i] = getRegisterName(cmd.operand[i].ivalue);
+        {
+            if (cmd.code.bits.longCommand && opType == OPERAND_MEM_BY_REG)
+            {
+                sprintf(strBuf, "%s+0x%X", getRegisterName(cmd.operand[i].ivalue), cmd.extend[i]);
+                operandStr[i] = strBuf;
+            }
+            else
+            {
+                operandStr[i] = getRegisterName(cmd.operand[i].ivalue);
+            }
+        }
         isInvalidOperands |= !operandStr[i];
-    }
 
-    if (isInvalidOperands)
-    {
-        logger.push("Disassembler error", "Invalid code for operands!");
-        return;
-    }
+        if (isInvalidOperands)
+        {
+            logger.push("Disassembler error", "Invalid code for operands!");
+            return;
+        }
 
-    fprintf(outStream, "%s ", commandName);
-    for (int i = 0; i < cmd.code.bits.nOperands; i++)
-    {
-        OperandType opType = getOperandType(cmd, i);
         if (opType == OPERAND_REGISTER || opType == OPERAND_NUMBER)
             fprintf(outStream, "%s", operandStr[i]);
         if (opType == OPERAND_MEMORY || opType == OPERAND_MEM_BY_REG)
@@ -245,14 +305,20 @@ AsmError Disassembler::generateCommandList(vector<Command>& commands, i8* bytes,
                 cmd.sizeCommand += sizeof(ui32);
             }
             else
-                if (opType == OPERAND_REGISTER || opType == OPERAND_MEM_BY_REG)
+            if (opType == OPERAND_REGISTER || opType == OPERAND_MEM_BY_REG)
+            {
+                cmd.operand[i].ivalue = *((ui8*)bytes);
+                bytes += sizeof(ui8);
+                cmd.sizeCommand += sizeof(ui8);
+                if (cmd.code.bits.longCommand && opType == OPERAND_MEM_BY_REG)
                 {
-                    cmd.operand[i].ivalue = *((ui8*)bytes);
-                    bytes += sizeof(ui8);
-                    cmd.sizeCommand += sizeof(ui8);
+                    cmd.extend[i] = *((ui32*)bytes);
+                    bytes += sizeof(ui32);
+                    cmd.sizeCommand += sizeof(ui32);
                 }
-                else
-                    isInvalidOperands |= 1;
+            }
+            else
+                isInvalidOperands |= 1;
         }
 
         if (isInvalidOperands)

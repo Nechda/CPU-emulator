@@ -94,7 +94,7 @@ int run_CPU(char* buffer, unsigned nBytes, const InputParams inputParams)
     printf("CPU finished with the code: %d (%s)\n", errorCode, getStringByErrorCode(static_cast<CPUerror>(errorCode)));
     if (!inputParams.noLogFileFlag && errorCode)
         printf("More infromation see in log file: %s\n", inputParams.logFilename);
-    CPU::Instance().dump();
+    CPU::Instance().dump(stdout);
     $$ return errorCode;
 }
 
@@ -246,6 +246,7 @@ int main(int argc, char** argv)
             errorCode |= ERROR_JUMP_DEFAULT_CASE_IN_SWITCH;
             break;
     }
+
 
     free(buffer);
     if(outStream)

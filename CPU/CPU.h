@@ -1,6 +1,7 @@
 #pragma once
 #include "Asm/Asm.h"
 #include "Tools/Argparser.h"
+#include "Profiler/Profiler.h"
 
 #include "Stack/Stack_kernel.h"
 #define TYPE_ ui8
@@ -21,6 +22,8 @@ enum CPUerror
     CPU_INVALID_INPUT_DATA
 };
 
+//#define DUMP_PRINT_MEMORY
+#define CPU_GRAPH_MODE
 
 class CPU
 {
@@ -30,7 +33,7 @@ public:
         static CPU theInstance;
         return theInstance;
     }
-    void dump();
+    void dump(Stream outStream);
     void status();
     void init(const InputParams inParam);
     CPUerror run(ui8* bytes, ui32 size, ui32 ptrStart);
@@ -40,6 +43,7 @@ private:
     CPU(const CPU&) = delete;
     CPU& operator=(const CPU) = delete;
     CPUerror evaluate();
+    Profiler profiler;
 public:
     static struct CPUStruct
     {
@@ -72,9 +76,3 @@ public:
 
 C_string getStringByErrorCode(CPUerror errorCode);
 
-/*
-\brief номера битов в регистре EFLAGS
-*/
-const ui8 FLAG_CF = 0;
-const ui8 FLAG_ZF = 6;
-const ui8 FLAG_SF = 7;
