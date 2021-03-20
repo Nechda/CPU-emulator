@@ -1,10 +1,10 @@
-#Benchmark
+# Benchmark
 
 В этой директории представлена программа на ассемблере, реализующая трассировку лучей. Данная программа будет выступать в роли бенчмарка архитектуры процессора.
 
 ## Interactive part
 
-Идея взята вот [тут](https://github.com/DinoZ1729/Ray), также использовался [сайт](https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection) для реализации ray tracing.
+Идея взята вот [тут](https://github.com/DinoZ1729/Ray), также использовался [сайт](https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection) для реализации raytracing.
 <p align="center">
   <img src="benchmark.gif">
 </p>
