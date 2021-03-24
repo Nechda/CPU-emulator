@@ -1,16 +1,16 @@
 .text
 mov edi, 0
-movw edi,  [0x9FE]  ;СЃС‡РёС‚С‹РІР°РµРј РєРѕР»РёС‡РµСЃС‚РІРѕ РєРѕР»РѕРЅРѕРє <-> x
+movw edi,  [0x9FE]  ;считываем количество колонок <-> x
 mov [width], edi
 
 mov edi, 0
-movw edi, [0x9FC] ;СЃС‡РёС‚РІР°РµРј РєРѕР»РёС‡РµСЃС‚РІРѕ Р»РёРЅРёР№ <-> y
+movw edi, [0x9FC] ;считваем количество линий <-> y
 mov [height], edi
 
 jmp main
 
 
-;СЂРёСЃСѓРµС‚ СЃРёРјРІРѕР» РёР· [symbol] РїРѕ РєРѕРѕСЂРґРёРЅР°С‚Р°Рј (eax,ebx)
+;рисует символ из [symbol] по координатам (eax,ebx)
 draw_symbol:
 	mov edi, 0
 	movw edi, [width]
@@ -22,8 +22,8 @@ draw_symbol:
 	movb [edx], [symbol]
 	ret
 
-;РїРѕР»СѓС‡Р°РµРј СЂР°СЃСЃС‚РѕСЏРЅРёРµ РґРѕ РїРѕР»Р° eax - phi, ebx - theta
-;РІРѕР·РІСЂР°С‰Р°РµРј РѕС‚РІРµС‚ РІ ecx
+;получаем расстояние до пола eax - phi, ebx - theta
+;возвращаем ответ в ecx
 get_floor_dist:
 	push eax
 	push ebx
@@ -36,8 +36,8 @@ get_floor_dist:
 
 	ret
 
-;РїРѕР»СѓС‡Р°РµРј СЂР°СЃСЃС‚РѕСЏРЅРёРµ РґРѕ РїРѕР»Р° eax, ebx, ecx --- РІРµРєС‚РѕСЂ РЅР°РїСЂР°РІР»РµРЅРёСЏ
-;РІРѕР·РІСЂР°С‰Р°РµРјРѕРµ Р·РЅР°С‡РµРЅРёРµ РІ ecx
+;получаем расстояние до пола eax, ebx, ecx --- вектор направления
+;возвращаемое значение в ecx
 get_floor_dist_uniform:
 	push eax
 	push ebx
@@ -57,9 +57,9 @@ get_floor_dist_uniform:
 	pop eax
 	ret
 
-;РїРѕР»СѓС‡Р°РµРј СЏСЂРєРѕСЃС‚РЅС‹Р№ СЃРёРјРІРѕР» РёСЃС…РѕРґСЏ РёР· СЂР°СЃСЃС‚РѕСЏРЅРёСЏ
-;in ecx --- СЂР°СЃСЃС‚РѕСЏРЅРёРµ Р»СѓС‡Р°
-;out ecx --- РєРѕРґ СЃРёРјРІРѕР»Р°
+;получаем яркостный символ исходя из расстояния
+;in ecx --- расстояние луча
+;out ecx --- код символа
 get_light_symbol:
 
 	push edx
@@ -79,15 +79,15 @@ get_light_symbol:
 	add ecx, ecx, lighting
 	mov edx, 0
 	movb edx, [ecx]
-	mov ecx, edx  ;СЃРёРјРІРѕР» РїРѕ СЏСЂРєРѕСЃС‚Рё
+	mov ecx, edx  ;символ по яркости
 
 	pop edx
 
 	ret
 
 
-;РїРѕР»СѓС‡Р°РµРј СЃРёРјРІРѕР» РїСЂРё СЃС‚РѕР»РєРЅРѕРІРµРЅРёРё СЃ РїРѕР»РѕРј eax,ebx,ecx --- РµРґРёРЅРёС‡РЅС‹Р№ РЅР°РїСЂР°РІР»СЏСЋС‰РёР№ РІРµРєС‚РѕСЂ
-;СЃРёРјРІРѕР» РІ ecx
+;получаем символ при столкновении с полом eax,ebx,ecx --- единичный направляющий вектор
+;символ в ecx
 get_sym_at_floor:
 	
 	call get_floor_dist_uniform
@@ -192,19 +192,19 @@ crate_matrix:
 	fcos ecx; cos t
 	fsin edx; sin t
 
-	;РїРµСЂРІС‹Р№ СЃС‚РѕР»Р±РёРє РІ РјР°С‚СЂРёС†Рµ
+	;первый столбик в матрице
 	mov ebp, matrix
 	fmul [ebp+0], ecx, eax
 	fmul [ebp+12], ecx, ebx
 	fmul [ebp+24], -1.0, edx
 
-	;РІС‚РѕСЂРѕР№ СЃС‚РѕР»Р±РёРє РІ РјР°С‚СЂРёС†Рµ
+	;второй столбик в матрице
 	add ebp, ebp, 4
 	fmul [ebp+0], ebx, -1.0
 	mov [ebp+12], eax
 	mov [ebp+24], 0.0
 
-	;С‚СЂРµС‚РёР№ СЃС‚РѕР»Р±РёРє РІ РјР°С‚СЂРёС†Рµ
+	;третий столбик в матрице
 	add ebp, ebp, 4
 	fmul [ebp+0], edx, eax
 	fmul [ebp+12], edx, ebx
@@ -217,8 +217,8 @@ crate_matrix:
 	pop eax
 	ret
 
-;СЃС‡РёС‚Р°РµС‚ СЃРєР°Р»СЏСЂРЅРѕРµ РїСЂРѕРёР·РІРµРґРµРЅРёРµ РІРµРєС‚РѕСЂР° (eax,ebx,ecx) Рё РІРµРєС‚РѕСЂР° РёР· [esi]
-;СЂРµР·СѓР»СЊС‚Р°С‚ РІ edx
+;считает скалярное произведение вектора (eax,ebx,ecx) и вектора из [esi]
+;результат в edx
 dot_vector:
 	push eax
 	push ebx
@@ -237,8 +237,8 @@ dot_vector:
 	pop eax
 	ret
 
-;РЅР° РІС…РѕРґ РїРѕРґР°РµС‚СЃСЏ (eax,ebx,ecx) РІРµРєС‚РѕСЂ
-;РЅР° РІС‹С…РѕРґРµ РїРѕР»СѓС‡Р°РµРј РЅРѕРІС‹Р№ РІРµРєС‚РѕСЂ
+;на вход подается (eax,ebx,ecx) вектор
+;на выходе получаем новый вектор
 mul_vector_to_matrix:
 	
 
@@ -262,7 +262,7 @@ mul_vector_to_matrix:
 
 	ret
 
-;С„СѓРЅРєС†РёСЏ РїРѕ РїРѕР»СЏСЂРЅС‹Рј СѓРіР»Р°Рј (eax,ebx) СЃС‚СЂРѕРёС‚ РµРґРёРЅРёС‡РЅС‹Р№ РІРµРєС‚РѕСЂ (eax,ebx,ecx)
+;функция по полярным углам (eax,ebx) строит единичный вектор (eax,ebx,ecx)
 get_uniform:
 	
 	mov ecx, ebx
@@ -290,8 +290,8 @@ get_uniform:
 
 
 
-;РїСЂРѕРІРµСЂРєР° СЃС‚РѕР»РєРЅРѕРІРµРЅРёСЏ СЃРѕ СЃС„РµСЂРѕР№ С†РµРЅС‚СЂ СЃС„РµСЂС‹ РІ (center_x,0,center_z)
-; eax, ebx, ecx --- (x,y,z) --- РІРµРєС‚РѕСЂ РЅР°РїСЂР°РІР»РµРЅРёСЏ
+;проверка столкновения со сферой центр сферы в (center_x,0,center_z)
+; eax, ebx, ecx --- (x,y,z) --- вектор направления
 check_collision:
 	
 	push eax
@@ -329,7 +329,7 @@ check_collision:
 	mov eax, edx
 		push eax
 		fabs eax
-		fadd [distance], eax, [distance] ; РґРѕР±Р°РІР»СЏРµРј РїСЂРѕР№РґРµРЅРЅРѕРµ СЂР°СЃСЃС‚РѕСЏРЅРёРµ, С‚РѕС‡РЅРµРµ "РїРµСЂРІСѓСЋ" С‡Р°СЃС‚СЊ
+		fadd [distance], eax, [distance] ; добавляем пройденное расстояние, точнее "первую" часть
 		pop eax
 	fpow eax, 2.0
 
@@ -350,12 +350,12 @@ check_collision:
 
 	fja 0.0, eax, no_intersection
 
-	;РµСЃС‚СЊ РїРµСЂРµСЃРµС‡РµРЅРёРµ СЃРѕ СЃС„РµСЂРѕР№
+	;есть пересечение со сферой
 		;distance += |dot(diff,unit)| - sqrt(discriminant);
 		fsqrt eax
 		fsub [distance], [distance], eax
 
-		;С‚РµРїРµСЂСЊ РЅРµРѕР±С…РѕРґРёРјРѕ РїСѓСЃС‚РёС‚СЊ СЃР»РµРґСѓСЋС‰РёР№ Р»СѓС‡ СѓР¶Рµ РёР· СЃС„РµСЂС‹
+		;теперь необходимо пустить следующий луч уже из сферы
 
 		push edx
 		mov edx, [distance]
@@ -365,7 +365,7 @@ check_collision:
 		fmul ecx, [ebp+20], edx
 		pop edx
 
-		;РјРµРЅСЏРµРј РјРµСЃС‚Рѕ, РёР· РєРѕС‚РѕСЂРѕРіРѕ РІС‹РїСѓСЃРєР°РµС‚СЃСЏ Р»СѓС‡
+		;меняем место, из которого выпускается луч
 		mov esi, origin
 		fadd [esi+0], [esi+0], eax
 		fadd [esi+4], [esi+4], ebx
@@ -378,7 +378,7 @@ check_collision:
 
 		mov esi, ebp
 		call normalize
-		; vec 3 diff == normal from sphere center to side --- РїСЂРѕРІРµСЂРєСѓ РїСЂРѕС€Р»Р°
+		; vec 3 diff == normal from sphere center to side --- проверку прошла
 
 		mov esi, ebp
 		mov edi, ebp
@@ -398,8 +398,8 @@ check_collision:
 		mov ebx, [ebp+16]
 		mov ecx, [ebp+20]
 
-		; С‚РµРїРµСЂСЊ РІ eax,ebx,ecx Р»РµР¶РёС‚ РѕР±РЅРѕРІР»РµРЅРЅРѕРµ РЅР°РїСЂР°РІР»РµРЅРёРµ
-		; + РёР·РјРµРЅРµРЅ origin
+		; теперь в eax,ebx,ecx лежит обновленное направление
+		; + изменен origin
 
 		call get_sym_at_floor
 		
@@ -419,7 +419,7 @@ check_collision:
 	ret
 
 
-;РїРѕ esi РІРµРєС‚РѕСЂ РєРѕС‚РѕСЂС‹Р№ РЅСѓР¶РЅРѕ РЅРѕСЂРјР°Р»РёР·РѕРІР°С‚СЊ
+;по esi вектор который нужно нормализовать
 normalize:
 	push edx
 	push edi
@@ -435,7 +435,7 @@ normalize:
 	pop edx
 	ret
 
-; РїРѕРґСЃС‡РµС‚ СЃРєР°Р»СЏСЂРЅРѕРіРѕ РїСЂРѕРёР·РІРµРґРµРЅРёСЏ [esi],[edi] -> edx
+; подсчет скалярного произведения [esi],[edi] -> edx
 dot_vector_mm:
 	push eax
 	mov edx, 0
@@ -493,18 +493,18 @@ main:
 			push eax
 			push ebx
 
-			call get_angles ;С‚РµРїРµСЂСЊ Сѓ РЅР°СЃ РІ eax, ebx Р»РµР¶Р°С‚ РїРѕР»СЏСЂРЅС‹Рµ СѓРіР»С‹
+			call get_angles ;теперь у нас в eax, ebx лежат полярные углы
 
 	
 
 
-			call check_collision ; РµСЃР»Рё edx == 0, С‚Рѕ РІС‹РІРѕРґРёРј РЅР° СЌРєСЂР°РЅ
+			call check_collision ; если edx == 0, то выводим на экран
 			je edx, 0, find_intersection
 
 			mov [distance], 0.0
-			call get_uniform ;РїРѕР»СѓС‡РёР»Рё РёР· СѓРіР»РѕРІ РІРµРєС‚РѕСЂ eax,ebx,ecx
+			call get_uniform ;получили из углов вектор eax,ebx,ecx
 
-			call get_sym_at_floor ;С‚РµРїРµСЂСЊ РјС‹ РёРјРµРµРј РІ ecx СЃРёРјРІРѕР», РєРѕС‚РѕСЂС‹Р№ РЅСѓР¶РЅРѕ РІС‹РІРѕРґРёС‚СЊ
+			call get_sym_at_floor ;теперь мы имеем в ecx символ, который нужно выводить
 			 find_intersection:
 
 			pop ebx
