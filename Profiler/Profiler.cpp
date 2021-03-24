@@ -2,8 +2,9 @@
 #include <sstream>
 
 using namespace std;
+using namespace Assembler;
 
-void Profiler::pushCommand(Assembler::Command cmd, ui32 eip)
+void Profiler::pushCommand(Command cmd, ui32 eip)
 {
     auto search = m_commandOrderedMap.find(eip);
     if (search != m_commandOrderedMap.end())
@@ -16,60 +17,62 @@ void Profiler::pushCommand(Assembler::Command cmd, ui32 eip)
     m_totalCommandExecuted++;
 }
 
-void Profiler::makeReport(const std::string filename, Report report)
+void Profiler::makeReport(const string filename, Report report)
 {
     switch (report)
     {
-    case Report::COMMAND_USAGE:
-        makeUsageReport(filename);
-        break;
-    case Report::REGION_TEMPERATURE:
-        measureTemperature(filename);
-        break;
-    case Report::COMMAND_SEQUENCE_USAGE:
-        makeSequenceUsageReport(filename);
-        break;
+        case Report::COMMAND_USAGE:
+            makeUsageReport(filename);
+            break;
+        case Report::REGION_TEMPERATURE:
+            measureTemperature(filename);
+            break;
+        case Report::COMMAND_SEQUENCE_USAGE:
+            makeSequenceUsageReport(filename);
+            break;
         case Report::LONGEST_REPEATED_STRING:
-        searchLongestRepeatedString(filename);
-        break;
-    default:
-        break;
+            searchLongestRepeatedString(filename);
+            break;
+        default:
+            break;
     }
 }
 
-std::string Profiler::makeCommandProtoString(ui16 commandCode)
+string Profiler::makeCommandProtoString(ui16 commandCode)
 {
-    static const std::string operand[] =
+    static const string operand[] =
     { "reg", "imm", "imm mem", "reg mem", "gen mem" };
 
-    static const std::string m_commandsName[] =
+    static const string m_commandsName[] =
     {
-        #define DEF(name, mCode, vStr1, vStr2, code) std::string(#name),
+        #define DEF(name, mCode, vStr1, vStr2, vStr3, code) string(#name),
             #include "Extend.h"
         #undef DEF
     };
 
-    ui8 op1 = (commandCode >> 4) & 0b11;
-    ui8 op2 = (commandCode >> 2) & 0b11;
-    bool isLongMemoryOperapors = (commandCode >> 6) & 1;
-
-    ui8 opCode = commandCode >> 8;
-    std::string result = m_commandsName[opCode];
-    if ((commandCode & 0b11) > 0)
-        result += " " + ((isLongMemoryOperapors && op1 == 3) ? operand[4] : operand[op1]);
-    if ((commandCode & 0b11) > 1)
-        result += " , " + ((isLongMemoryOperapors && op2 == 3) ? operand[4] : operand[op2]);
+    Command cmd;
+    cmd.bits.marchCode = commandCode;
+    string result = m_commandsName[cmd.bits.opCode] + " ";
+    for (ui8 i = 0; i < cmd.bits.nOperands; i++)
+    {
+        OperandType opType = getOperandType(cmd, i);
+        if (i != 0 )
+            result += " , ";
+        result += (cmd.bits.longCommand && opType == OPERAND_MEM_BY_REG)
+                ? operand[4]
+                : operand[opType];
+    }
 
     return result;
 }
 
 
-void Profiler::measureTemperature(const std::string& filename)
+void Profiler::measureTemperature(const string& filename)
 {
     ofstream reportFile;
     if (!filename.size())
     {
-        std::cout << "You should set output file for report." << std::endl;
+        cout << "You should set output file for report." << endl;
         return;
     }
     reportFile.open(filename);
@@ -79,7 +82,7 @@ void Profiler::measureTemperature(const std::string& filename)
     for (const auto& it : m_commandOrderedMap)
     {
         reportFile << "Total usage : " << setprecision(4) << (double(it.second.extend[0]) / m_totalCommandExecuted) << endl;
-        reportFile << "    " << makeCommandProtoString(it.second.code.marchCode) << endl;
+        reportFile << "    " << makeCommandProtoString(it.second.bits.marchCode) << endl;
     }
 
     reportFile.close();
@@ -87,29 +90,29 @@ void Profiler::measureTemperature(const std::string& filename)
 }
 
 
-void Profiler::makeUsageReport(const std::string& filename)
+void Profiler::makeUsageReport(const string& filename)
 {
-    std::ofstream reportFile;
+    ofstream reportFile;
     if (!filename.size())
     {
-        std::cout << "You should set output file for report." << std::endl;
+        cout << "You should set output file for report." << endl;
         return;
     }
     reportFile.open(filename);
     cout << setw(SPACE_SIZE_FOR_EXPLANATORY_LINE) << "Measuring command usage frequency ... ";
 
-    using pairType = std::pair<ui16, ui32>;
-    std::vector<pairType> commandUsageTable;
+    using pairType = pair<ui16, ui32>;
+    vector<pairType> commandUsageTable;
 
     commandUsageTable.reserve(m_commandOrderedMap.size());
     for (const auto& it : m_commandOrderedMap)
         commandUsageTable.push_back({
-            it.second.code.marchCode,
+            it.second.bits.marchCode,
             it.second.extend[0]
         });
 
     //sorting by cmd code
-    std::sort(commandUsageTable.begin(), commandUsageTable.end(),
+    sort(commandUsageTable.begin(), commandUsageTable.end(),
         [](const pairType& a, const pairType& b) {return a.first < b.first; }
     );
 
@@ -171,7 +174,7 @@ namespace LRS
 }
 
 
-static void prntLRS(const string& decode, ostream& outStream = std::cout)
+static void prntLRS(const string& decode, ostream& outStream = cout)
 {
     stringstream ss;
     ui32 start = decode.find_first_of(' ');
@@ -187,19 +190,19 @@ static void prntLRS(const string& decode, ostream& outStream = std::cout)
 
 
 
-static void eraseAllSubStr(std::string & mainStr, const std::string & toErase)
+static void eraseAllSubStr(string & mainStr, const string & toErase)
 {
-    size_t pos = std::string::npos;
-    while ((pos = mainStr.find(toErase)) != std::string::npos)
+    size_t pos = string::npos;
+    while ((pos = mainStr.find(toErase)) != string::npos)
         mainStr.erase(pos, toErase.length());
 }
 
-void Profiler::searchLongestRepeatedString(const std::string& filename)
+void Profiler::searchLongestRepeatedString(const string& filename)
 {
-    std::ofstream reportFile;
+    ofstream reportFile;
     if (!filename.size())
     {
-        std::cout << "You should set output file for report." << std::endl;
+        cout << "You should set output file for report." << endl;
         return;
     }
     reportFile.open(filename);
@@ -209,7 +212,7 @@ void Profiler::searchLongestRepeatedString(const std::string& filename)
 
     stringstream ss;
     for (const auto& it : m_commandOrderedMap)
-        ss << it.second.code.marchCode << " ";
+        ss << it.second.bits.marchCode << " ";
     
 
     string s = "";

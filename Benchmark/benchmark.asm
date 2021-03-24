@@ -1,59 +1,52 @@
 .text
-xor edi, edi
-movw edi,  [0x9FE]  ;считываем количество колонок <-> x
+mov edi, 0
+movw edi,  [0x9FE]  ;СЃС‡РёС‚С‹РІР°РµРј РєРѕР»РёС‡РµСЃС‚РІРѕ РєРѕР»РѕРЅРѕРє <-> x
 mov [width], edi
 
-xor edi, edi
-movw edi, [0x9FC] ;считваем количество линий <-> y
+mov edi, 0
+movw edi, [0x9FC] ;СЃС‡РёС‚РІР°РµРј РєРѕР»РёС‡РµСЃС‚РІРѕ Р»РёРЅРёР№ <-> y
 mov [height], edi
 
 jmp main
 
 
-;рисует символ из [symbol] по координатам (eax,ebx)
+;СЂРёСЃСѓРµС‚ СЃРёРјРІРѕР» РёР· [symbol] РїРѕ РєРѕРѕСЂРґРёРЅР°С‚Р°Рј (eax,ebx)
 draw_symbol:
-	xor edi, edi
+	mov edi, 0
 	movw edi, [width]
 	mov edx, 0xA00
-	mul ebx, edi
-	mul ebx, 2
-	add eax, ebx
-	add edx, eax
+	mul ebx, ebx, edi
+	;mul ebx, ebx, 2
+	add eax, eax, ebx
+	add edx, edx, eax
 	movb [edx], [symbol]
 	ret
 
-;получаем расстояние до пола eax - phi, ebx - theta
-;возвращаем ответ в ecx
+;РїРѕР»СѓС‡Р°РµРј СЂР°СЃСЃС‚РѕСЏРЅРёРµ РґРѕ РїРѕР»Р° eax - phi, ebx - theta
+;РІРѕР·РІСЂР°С‰Р°РµРј РѕС‚РІРµС‚ РІ ecx
 get_floor_dist:
 	push eax
 	push ebx
 
 	fcos ebx
+	fdiv ecx, -1.0, ebx
 
-	mov ecx, 1.0
-	fdiv ecx, ebx
-	fmul ecx, -1.0
 	pop ebx
 	pop eax
 
 	ret
 
-;получаем расстояние до пола eax, ebx, ecx --- вектор направления
-;возвращаемое значение в ecx
+;РїРѕР»СѓС‡Р°РµРј СЂР°СЃСЃС‚РѕСЏРЅРёРµ РґРѕ РїРѕР»Р° eax, ebx, ecx --- РІРµРєС‚РѕСЂ РЅР°РїСЂР°РІР»РµРЅРёСЏ
+;РІРѕР·РІСЂР°С‰Р°РµРјРѕРµ Р·РЅР°С‡РµРЅРёРµ РІ ecx
 get_floor_dist_uniform:
 	push eax
 	push ebx
 
-	fcomp ecx, 0.0
-	ja so_far
+	fja ecx, 0.0, so_far
 	
-	mov eax, 1.0
-	fdiv eax, ecx
 	mov ebp, origin
-	fmul eax, [ebp+8]
-
-	fmul eax, -1.0
-	mov ecx, eax
+	fdiv eax, [ebp+12], ecx
+	fmul ecx, -1.0, eax
 
 	jmp end_dist_cmp
 	so_far:
@@ -64,56 +57,63 @@ get_floor_dist_uniform:
 	pop eax
 	ret
 
-;получаем яркостный символ исходя из расстояния
-;in ecx --- расстояние луча
-;out ecx --- код символа
+;РїРѕР»СѓС‡Р°РµРј СЏСЂРєРѕСЃС‚РЅС‹Р№ СЃРёРјРІРѕР» РёСЃС…РѕРґСЏ РёР· СЂР°СЃСЃС‚РѕСЏРЅРёСЏ
+;in ecx --- СЂР°СЃСЃС‚РѕСЏРЅРёРµ Р»СѓС‡Р°
+;out ecx --- РєРѕРґ СЃРёРјРІРѕР»Р°
 get_light_symbol:
 
 	push edx
 
 	mov ecx, [distance]
 
-
-	fmul ecx, 5.0
-	fadd ecx, 1.0
+	fmul ecx, ecx, 5.0
+	fadd ecx, ecx, 1.0
 	fsqrt ecx
-	fadd ecx, 1.0
-	mov edx, 24.0
-	fdiv edx, ecx
-	mov ecx, edx
-	
+	fadd ecx, ecx, 1.0
+	fdiv ecx, 52.0, ecx
+
 	fistp ecx
 
-	add ecx, lighting
-	xor edx, edx
+	
+
+	add ecx, ecx, lighting
+	mov edx, 0
 	movb edx, [ecx]
-	mov ecx, edx  ;символ по яркости
+	mov ecx, edx  ;СЃРёРјРІРѕР» РїРѕ СЏСЂРєРѕСЃС‚Рё
 
 	pop edx
 
 	ret
 
 
-;получаем символ при столкновении с полом eax,ebx,ecx --- единичный направляющий вектор
-;символ в ecx
+;РїРѕР»СѓС‡Р°РµРј СЃРёРјРІРѕР» РїСЂРё СЃС‚РѕР»РєРЅРѕРІРµРЅРёРё СЃ РїРѕР»РѕРј eax,ebx,ecx --- РµРґРёРЅРёС‡РЅС‹Р№ РЅР°РїСЂР°РІР»СЏСЋС‰РёР№ РІРµРєС‚РѕСЂ
+;СЃРёРјРІРѕР» РІ ecx
 get_sym_at_floor:
 	
 	call get_floor_dist_uniform
-	fadd [distance], ecx
-	fmul eax, ecx
-	fmul ebx, ecx
+	fadd [distance], ecx, [distance]
+
+
+
+	fmul eax, ecx, eax
+	fmul ebx, ecx, ebx
+
+	
 
 	fistp eax
 	fistp ebx
 
-	add eax, ebx
+	
+	add eax, eax, ebx
 	mod eax, 2
-	cmp eax, 0
-	je if_0
-		call get_light_symbol
+		
+	je eax, 1, if_0
+
+	call get_light_symbol
+	
 	jmp end_if_0
 	if_0:
-    	mov ecx, 0x20
+    mov ecx, 0x20
 	end_if_0:
 
 
@@ -122,29 +122,28 @@ get_sym_at_floor:
 
 get_angles:
 
-	xor edx,edx
+	mov edx, 0
 	movw edx, [width]
 	fild edx
 	fild eax
-	fdiv eax, edx
-	fsub eax, 0.5
-	fmul eax, -2.0
+	fdiv eax, eax, edx
+	fsub eax, eax, 0.5
+	fmul eax, eax, -2.0
 
 
-	xor edx,edx
+	mov edx, 0
 	movw edx, [height]
 	fild edx
 	fild ebx
-	fdiv ebx, edx
-	fsub ebx, 0.5
-	fmul ebx, 2.0
+	fdiv ebx, ebx, edx
+	fsub ebx, ebx, 0.5
+	fmul ebx, ebx, 2.0
 
 	mov ecx, 1.414
 
 	mov ebp, esp
 	mov [ebp+0], ecx
-	mov [ebp+4], eax
-	fmul [ebp+4], -1.0
+	fmul [ebp+4], eax, -1.0
 	mov [ebp+8], ebx
 
 	mov eax, [ebp+0]
@@ -160,7 +159,7 @@ get_angles:
 
 	fpow eax, 2.0
 	fpow ebx, 2.0
-	fadd eax, ebx
+	fadd eax, ebx, eax
 	fpow eax, 0.5
 	atan2 eax, ecx
 	mov [ebp+12],eax
@@ -178,14 +177,12 @@ get_angles:
 
 
 
-
 ;esi - phi edi -theta 
 crate_matrix:
 	push eax
 	push ebx
 	push ecx
 	push edx
-
 
 	mov ecx, edi ; t
 	mov edx, edi ; t
@@ -195,28 +192,22 @@ crate_matrix:
 	fcos ecx; cos t
 	fsin edx; sin t
 
-	;первый столбик в матрице
+	;РїРµСЂРІС‹Р№ СЃС‚РѕР»Р±РёРє РІ РјР°С‚СЂРёС†Рµ
 	mov ebp, matrix
-	mov [ebp+0], ecx
-	fmul [ebp+0], eax
-	mov [ebp+12], ecx
-	fmul [ebp+12], ebx
-	mov [ebp+24], edx
-	fmul [ebp+24], -1.0
+	fmul [ebp+0], ecx, eax
+	fmul [ebp+12], ecx, ebx
+	fmul [ebp+24], -1.0, edx
 
-	;второй столбик в матрице
-	add ebp, 4
-	mov [ebp+0], ebx
-	fmul [ebp+0],-1.0
+	;РІС‚РѕСЂРѕР№ СЃС‚РѕР»Р±РёРє РІ РјР°С‚СЂРёС†Рµ
+	add ebp, ebp, 4
+	fmul [ebp+0], ebx, -1.0
 	mov [ebp+12], eax
 	mov [ebp+24], 0.0
 
-	;третий столбик в матрице
-	add ebp, 4
-	mov [ebp+0], eax
-	fmul [ebp+0], edx
-	mov [ebp+12], ebx
-	fmul [ebp+12], edx
+	;С‚СЂРµС‚РёР№ СЃС‚РѕР»Р±РёРє РІ РјР°С‚СЂРёС†Рµ
+	add ebp, ebp, 4
+	fmul [ebp+0], edx, eax
+	fmul [ebp+12], edx, ebx
 	mov [ebp+24], eax
 
 
@@ -226,29 +217,28 @@ crate_matrix:
 	pop eax
 	ret
 
-;считает скалярное произведение вектора (eax,ebx,ecx) и вектора из [esi]
-;результат в edx
+;СЃС‡РёС‚Р°РµС‚ СЃРєР°Р»СЏСЂРЅРѕРµ РїСЂРѕРёР·РІРµРґРµРЅРёРµ РІРµРєС‚РѕСЂР° (eax,ebx,ecx) Рё РІРµРєС‚РѕСЂР° РёР· [esi]
+;СЂРµР·СѓР»СЊС‚Р°С‚ РІ edx
 dot_vector:
 	push eax
 	push ebx
 	push ecx
 
-	fmul eax, [esi+0]
-	fmul ebx, [esi+4]
-	fmul ecx, [esi+8]
-
-	xor edx,edx
-	mov edx, eax
-	fadd edx, ebx
-	fadd edx, ecx
+	fmul eax, [esi+0], eax
+	fmul ebx, [esi+4], ebx
+	fmul ecx, [esi+8], ecx
+	
+	mov edx, 0.0
+	fadd edx, ebx, eax
+	fadd edx, edx, ecx
 
 	pop ecx
 	pop ebx
 	pop eax
 	ret
 
-;на вход подается (eax,ebx,ecx) вектор
-;на выходе получаем новый вектор
+;РЅР° РІС…РѕРґ РїРѕРґР°РµС‚СЃСЏ (eax,ebx,ecx) РІРµРєС‚РѕСЂ
+;РЅР° РІС‹С…РѕРґРµ РїРѕР»СѓС‡Р°РµРј РЅРѕРІС‹Р№ РІРµРєС‚РѕСЂ
 mul_vector_to_matrix:
 	
 
@@ -257,11 +247,11 @@ mul_vector_to_matrix:
 	push edx
 
 
-	add esi, 12
+	add esi, esi, 12
 	call dot_vector
 	push edx
 
-	add esi, 12
+	add esi, esi, 12
 	call dot_vector
 	push edx
 
@@ -272,7 +262,7 @@ mul_vector_to_matrix:
 
 	ret
 
-;функция по полярным углам (eax,ebx) строит единичный вектор (eax,ebx,ecx)
+;С„СѓРЅРєС†РёСЏ РїРѕ РїРѕР»СЏСЂРЅС‹Рј СѓРіР»Р°Рј (eax,ebx) СЃС‚СЂРѕРёС‚ РµРґРёРЅРёС‡РЅС‹Р№ РІРµРєС‚РѕСЂ (eax,ebx,ecx)
 get_uniform:
 	
 	mov ecx, ebx
@@ -289,8 +279,8 @@ get_uniform:
 	mov [ebp+4], edx
 	mov [ebp+8], ecx
 
-	fmul [ebp+0], eax
-	fmul [ebp+4], ebx
+	fmul [ebp+0], eax, [ebp+0]
+	fmul [ebp+4], ebx, [ebp+4]
 
 	mov eax, [ebp+0]
 	mov ebx, [ebp+4]
@@ -298,8 +288,10 @@ get_uniform:
 	
 	ret
 
-;проверка столкновения со сферой центр сферы в (center_x,0,center_z)
-; eax, ebx, ecx --- (x,y,z) --- вектор направления
+
+
+;РїСЂРѕРІРµСЂРєР° СЃС‚РѕР»РєРЅРѕРІРµРЅРёСЏ СЃРѕ СЃС„РµСЂРѕР№ С†РµРЅС‚СЂ СЃС„РµСЂС‹ РІ (center_x,0,center_z)
+; eax, ebx, ecx --- (x,y,z) --- РІРµРєС‚РѕСЂ РЅР°РїСЂР°РІР»РµРЅРёСЏ
 check_collision:
 	
 	push eax
@@ -311,14 +303,12 @@ check_collision:
 	
 	;alloc memory
 	mov ebp, esp
-	add esp, 24 
+	add esp, esp, 24 
 
 	;diff vector
-	mov [ebp+0], 0.0
-	fsub [ebp+0], [center_x]
+	fsub [ebp+0], 0.0, [center_x]
 	mov [ebp+4],  0.0
-	mov [ebp+8],  [camera_z]
-	fsub [ebp+8], [center_z]
+	fsub [ebp+8], [camera_z], [center_z]
 
 	
 
@@ -334,12 +324,12 @@ check_collision:
 	;eax == dot(unit, diff)^2
 	mov esi, ebp
 	mov edi, ebp
-	add edi, 12
+	add edi, edi, 12
 	call dot_vector_mm
 	mov eax, edx
 		push eax
 		fabs eax
-		fadd [distance], eax ; добавляем пройденное расстояние, точнее "первую" часть
+		fadd [distance], eax, [distance] ; РґРѕР±Р°РІР»СЏРµРј РїСЂРѕР№РґРµРЅРЅРѕРµ СЂР°СЃСЃС‚РѕСЏРЅРёРµ, С‚РѕС‡РЅРµРµ "РїРµСЂРІСѓСЋ" С‡Р°СЃС‚СЊ
 		pop eax
 	fpow eax, 2.0
 
@@ -348,70 +338,68 @@ check_collision:
 	;eax == dot(unit, diff)^2 + radius^2
 	mov edx, [radius]
 	fpow edx, 2.0
-	fadd eax, edx
+	fadd eax, edx, eax
 	
 	;eax == dot(unit, diff)^2 + radius^2 - dot(diff,diff)
 	mov esi, ebp
 	mov edi, ebp
 	call dot_vector_mm
-	fsub eax, edx
+	fsub eax, eax, edx
 
 
 
-	fcomp eax, 0.0
-	jb no_intersection
+	fja 0.0, eax, no_intersection
 
-	;есть пересечение со сферой
+	;РµСЃС‚СЊ РїРµСЂРµСЃРµС‡РµРЅРёРµ СЃРѕ СЃС„РµСЂРѕР№
 		;distance += |dot(diff,unit)| - sqrt(discriminant);
 		fsqrt eax
-		fsub [distance], eax
+		fsub [distance], [distance], eax
 
-		;теперь необходимо пустить следующий луч уже из сферы
-		mov ecx, [distance]
+		;С‚РµРїРµСЂСЊ РЅРµРѕР±С…РѕРґРёРјРѕ РїСѓСЃС‚РёС‚СЊ СЃР»РµРґСѓСЋС‰РёР№ Р»СѓС‡ СѓР¶Рµ РёР· СЃС„РµСЂС‹
 
-		mov eax,[ebp+12]
-		mov ebx,[ebp+16]
-		mov ecx,[ebp+20]
+		push edx
+		mov edx, [distance]
 
-		fmul eax, [distance]
-		fmul ebx, [distance]
-		fmul ecx, [distance]
+		fmul eax, [ebp+12], edx
+		fmul ebx, [ebp+16], edx
+		fmul ecx, [ebp+20], edx
+		pop edx
 
-		;меняем место, из которого выпускается луч
+		;РјРµРЅСЏРµРј РјРµСЃС‚Рѕ, РёР· РєРѕС‚РѕСЂРѕРіРѕ РІС‹РїСѓСЃРєР°РµС‚СЃСЏ Р»СѓС‡
 		mov esi, origin
-		fadd [esi+0], eax
-		fadd [esi+4], ebx
-		fadd [esi+8], ecx
+		fadd [esi+0], [esi+0], eax
+		fadd [esi+4], [esi+4], ebx
+		fadd [esi+8], [esi+8], ecx
 
 		; n = dist * uniform - to_center
-		fadd [ebp+0], eax
-		fadd [ebp+4], ebx
-		fadd [ebp+8], ecx
+		fadd [ebp+0], [ebp+0], eax
+		fadd [ebp+4], [ebp+4], ebx
+		fadd [ebp+8], [ebp+8], ecx
 
 		mov esi, ebp
 		call normalize
-		; vec 3 diff == normal from sphere center to side --- проверку прошла
+		; vec 3 diff == normal from sphere center to side --- РїСЂРѕРІРµСЂРєСѓ РїСЂРѕС€Р»Р°
 
 		mov esi, ebp
 		mov edi, ebp
-		add edi, 12
+		add edi, edi, 12
 		call dot_vector_mm
-		fmul edx, 2.0
+		fmul edx, edx, 2.0 ; if 2.0 -> refraction, if -2.0 reflection
 		
-		fmul [ebp+0], edx
-		fmul [ebp+4], edx
-		fmul [ebp+8], edx
+		fmul [ebp+0], edx, [ebp+0]
+		fmul [ebp+4], edx, [ebp+4]
+		fmul [ebp+8], edx, [ebp+8]
 
-		fadd [ebp+12],[ebp+0]
-		fadd [ebp+16],[ebp+4]
-		fadd [ebp+20],[ebp+8]
+		fadd [ebp+12],[ebp+0],[ebp+12]
+		fadd [ebp+16],[ebp+4],[ebp+16]
+		fadd [ebp+20],[ebp+8],[ebp+20]
 
 		mov eax, [ebp+12]
 		mov ebx, [ebp+16]
 		mov ecx, [ebp+20]
 
-		; теперь в eax,ebx,ecx лежит обновленное направление
-		; + изменен origin
+		; С‚РµРїРµСЂСЊ РІ eax,ebx,ecx Р»РµР¶РёС‚ РѕР±РЅРѕРІР»РµРЅРЅРѕРµ РЅР°РїСЂР°РІР»РµРЅРёРµ
+		; + РёР·РјРµРЅРµРЅ origin
 
 		call get_sym_at_floor
 		
@@ -425,13 +413,13 @@ check_collision:
 		mov edx, 0xFF
 	end_intersection:
 
-	sub esp, 24
+	sub esp, esp, 24
 	pop ebx
 	pop eax
 	ret
 
 
-;по esi вектор который нужно нормализовать
+;РїРѕ esi РІРµРєС‚РѕСЂ РєРѕС‚РѕСЂС‹Р№ РЅСѓР¶РЅРѕ РЅРѕСЂРјР°Р»РёР·РѕРІР°С‚СЊ
 normalize:
 	push edx
 	push edi
@@ -439,30 +427,30 @@ normalize:
 	call dot_vector_mm
 	fsqrt edx
 
-	fdiv [esi+0], edx
-	fdiv [esi+4], edx
-	fdiv [esi+8], edx
+	fdiv [esi+0], [esi+0], edx
+	fdiv [esi+4], [esi+4], edx
+	fdiv [esi+8], [esi+8], edx
 
 	pop edi 
 	pop edx
 	ret
 
-; подсчет скалярного произведения [esi],[edi] -> edx
+; РїРѕРґСЃС‡РµС‚ СЃРєР°Р»СЏСЂРЅРѕРіРѕ РїСЂРѕРёР·РІРµРґРµРЅРёСЏ [esi],[edi] -> edx
 dot_vector_mm:
 	push eax
-	xor edx, edx
+	mov edx, 0
 
 	mov eax, [esi+0]
-	fmul eax, [edi+0]
-	fadd edx, eax
+	fmul eax, [edi+0], eax
+	fadd edx, eax, edx
 
 	mov eax, [esi+4]
-	fmul eax, [edi+4]
-	fadd edx, eax
+	fmul eax, [edi+4], eax
+	fadd edx, eax, edx
 
 	mov eax, [esi+8]
-	fmul eax, [edi+8]
-	fadd edx, eax
+	fmul eax, [edi+8], eax
+	fadd edx, eax, edx
 	
 
 	pop eax
@@ -476,20 +464,18 @@ main:
 	mov esi, 0.0
 	call crate_matrix
 
-
-	
-
 	infiity_loop:
 
 	
 
-	fadd [time], 0.2
+	fadd [time], [time], 0.2
 
-	mov [center_z], [time]
-	fsin [center_z]
-	fpow [center_z], 2.0
-	fmul [center_z], 0.7
-	fadd [center_z], 1.0
+	mov eax, [time]
+	fsin eax
+	fpow eax, 2.0
+	fmul [center_z], 0.7, eax
+	fadd [center_z], [center_z], 1.0
+
 
 
 	mov eax, 0
@@ -506,35 +492,37 @@ main:
 			mov [distance], 0.0
 			push eax
 			push ebx
-			call get_angles ;теперь у нас в eax, ebx лежат полярные углы
-			call check_collision ; если edx == 0, то выводим на экран
-			cmp edx, 0
-			je find_intersection
+
+			call get_angles ;С‚РµРїРµСЂСЊ Сѓ РЅР°СЃ РІ eax, ebx Р»РµР¶Р°С‚ РїРѕР»СЏСЂРЅС‹Рµ СѓРіР»С‹
+
+	
+
+
+			call check_collision ; РµСЃР»Рё edx == 0, С‚Рѕ РІС‹РІРѕРґРёРј РЅР° СЌРєСЂР°РЅ
+			je edx, 0, find_intersection
 
 			mov [distance], 0.0
-			call get_uniform ;получили из углов вектор eax,ebx,ecx
-			call get_sym_at_floor ;теперь мы имеем в ecx символ, который нужно выводить
-			find_intersection:
+			call get_uniform ;РїРѕР»СѓС‡РёР»Рё РёР· СѓРіР»РѕРІ РІРµРєС‚РѕСЂ eax,ebx,ecx
+
+			call get_sym_at_floor ;С‚РµРїРµСЂСЊ РјС‹ РёРјРµРµРј РІ ecx СЃРёРјРІРѕР», РєРѕС‚РѕСЂС‹Р№ РЅСѓР¶РЅРѕ РІС‹РІРѕРґРёС‚СЊ
+			 find_intersection:
 
 			pop ebx
 			pop eax
 
 			push eax
 			push ebx
-			sub ebx, [height]
-			mul ebx, -1
+			sub ebx, [height], ebx 
 			movb [symbol], ecx
 			call draw_symbol
 			pop ebx    
 			pop eax
 
-			add ebx, 1
-			cmp ebx, [height]
-			jne lbl_loop_y
+			add ebx, ebx, 1
+			jne ebx, [height], lbl_loop_y
 		
-		add eax, 1
-		cmp eax, [width]
-		jb  lbl_loop_x
+		add eax, eax, 1
+		jne eax, [width], lbl_loop_x
 
 		dump 
 
@@ -550,7 +538,7 @@ exit:
 	@matrix dq 0 alloc 9
 	@time dq 0 alloc 1
 	@radius dq 1.0 alloc 1
-	@center_x dq 5.0 alloc 1 
+	@center_x dq 3.0 alloc 1 
 	@center_z dq 2.0 alloc 1
 	@distance dq 0.0 alloc 1
 	@origin dq 0 alloc 3

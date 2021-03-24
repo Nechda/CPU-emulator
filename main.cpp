@@ -247,6 +247,7 @@ int main(int argc, char** argv)
             break;
     }
 
+    glFlush();
 
     free(buffer);
     if(outStream)

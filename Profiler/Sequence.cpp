@@ -34,21 +34,21 @@ void Profiler::makeSequenceUsageReport(const std::string& filename)
     sequenceTable.reserve(commandVector.size() - SEQUENCE_LENGTH);
 
 
-    #define IS_JUMP(cmd) cmd.code.bits.opCode == 8
-    #define IS_RET(cmd) cmd.code.bits.opCode == 17
+    #define IS_JUMP(cmd) cmd.bits.opCode == 8
+    #define IS_RET(cmd) cmd.bits.opCode == 14
 
     ui64 hash = 0;
     ui8 isThereJmpOrRet = 0;
-    hash |= commandVector[0].code.marchCode; hash <<= 16;
+    hash |= commandVector[0].bits.marchCode; hash <<= 16;
     isThereJmpOrRet |= IS_JUMP(commandVector[0]) || IS_RET(commandVector[0]);
     isThereJmpOrRet <<= 2;
-    hash |= commandVector[1].code.marchCode; hash <<= 16;
+    hash |= commandVector[1].bits.marchCode; hash <<= 16;
     isThereJmpOrRet |= IS_JUMP(commandVector[1]) || IS_RET(commandVector[1]);
     isThereJmpOrRet <<= 2;
-    hash |= commandVector[2].code.marchCode; hash <<= 16;
+    hash |= commandVector[2].bits.marchCode; hash <<= 16;
     isThereJmpOrRet |= IS_JUMP(commandVector[2]) || IS_RET(commandVector[2]);
     isThereJmpOrRet <<= 2;
-    hash |= commandVector[3].code.marchCode;
+    hash |= commandVector[3].bits.marchCode;
     isThereJmpOrRet |= IS_JUMP(commandVector[3]) || IS_RET(commandVector[3]);
 
 
@@ -57,7 +57,7 @@ void Profiler::makeSequenceUsageReport(const std::string& filename)
         sequenceTable.push_back({ isThereJmpOrRet ? 0 : commandVector[i-4].extend[0] , hash });
         hash <<= 16;
         isThereJmpOrRet <<= 2;
-        hash |= commandVector[i].code.marchCode;
+        hash |= commandVector[i].bits.marchCode;
         isThereJmpOrRet |= IS_JUMP(commandVector[i]) || IS_RET(commandVector[i]);
     }
 

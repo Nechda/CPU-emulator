@@ -74,10 +74,10 @@ static inline bool isNumber(const char* str)
     Assert_c(str);
     if (!str)
         return false;
-
+ 
     if (!isdigit(*str) && *str != '-')
         return false;
-
+ 
     if (strstr(str, "0x"))
         return true;
 
@@ -425,12 +425,13 @@ static int getMemoryOperand(char* str, Label* lables, ui32 nLables,ui32* longMem
 */
 static AsmError checkValidityOfOperands(Command cmd)
 {
-    char* validityStr[2] = { NULL, NULL };
+    char* validityStr[3] = { NULL, NULL };
     for (int i = 0; i < COMMAND_TABLE_SIZE; i++)
-        if (commandTable[i].machineCode >> 8 == cmd.code.bits.opCode)
+        if (commandTable[i].machineCode >> 10 == cmd.bits.opCode)
         {
             validityStr[0] = commandTable[i].validFirstOperand;
             validityStr[1] = commandTable[i].validSecondOperand;
+            validityStr[2] = commandTable[i].validThirdOperand;
         }
 
     if (validityStr[0] == NULL)
@@ -438,7 +439,7 @@ static AsmError checkValidityOfOperands(Command cmd)
 
     const char* opTypeStr = "RNMB";
     OperandType opType;
-    for (int i = 0; i < cmd.code.bits.nOperands; i++)
+    for (int i = 0; i < cmd.bits.nOperands; i++)
     {
         opType = getOperandType(cmd, i);
         if (!strchr(validityStr[i], opTypeStr[(ui8)opType]))
@@ -580,9 +581,9 @@ static AsmError genBytes(const char* codeLine, Label* lables, ui32 nLables, ui8*
             return ASM_ERROR_INVALID_SYNTAX;
         }
 
-        cmd.code.marchCode = *((Mcode*)ptr);
+        cmd.bits.marchCode = *((Mcode*)ptr);
         currentPosition += sizeof(Mcode);
-        for (int i = 0; i < cmd.code.bits.nOperands; i++)
+        for (int i = 0; i < cmd.bits.nOperands; i++)
         {
             ptr = (char*)readNextLexema((char**)&codeLine, &lxt);
             if (!ptr)
@@ -618,7 +619,7 @@ static AsmError genBytes(const char* codeLine, Label* lables, ui32 nLables, ui8*
                 ui32 offsetOperand = 0;
                 cmd.operand[i].ivalue = getMemoryOperand(ptr, lables, nLables, &offsetOperand);
                 cmd.extend[i] = offsetOperand;
-                cmd.code.bits.longCommand = 1;
+                cmd.bits.longCommand = 1;
                 if (cmd.operand[i].ivalue == ASM_ERROR_CODE)
                 {
                     logger.push("Compilator error", "Invalid link to memory: \"%s\" ", ptr);
@@ -648,7 +649,7 @@ static AsmError genBytes(const char* codeLine, Label* lables, ui32 nLables, ui8*
 
         }
 
-        *((Mcode*)bytes) = cmd.code.marchCode;
+        *((Mcode*)bytes) = cmd.bits.marchCode;
         bytes += sizeof(Mcode);
 
 
@@ -661,12 +662,12 @@ static AsmError genBytes(const char* codeLine, Label* lables, ui32 nLables, ui8*
         }
         if (errorCode == ASM_ERROR_INVALID_MACHINE_CODE)
         {
-            logger.push("Compilator error", "Has been generated invalid machine code: 0x%X", cmd.code.marchCode);
+            logger.push("Compilator error", "Has been generated invalid machine code: 0x%X", cmd.bits.marchCode);
             return ASM_ERROR_INVALID_MACHINE_CODE;
         }
 
 
-        for (int i = 0; i < cmd.code.bits.nOperands; i++)
+        for (int i = 0; i < cmd.bits.nOperands; i++)
         {
             OperandType opType = getOperandType(cmd, i);
             if (opType == OPERAND_NUMBER || opType == OPERAND_MEMORY)
@@ -678,7 +679,7 @@ static AsmError genBytes(const char* codeLine, Label* lables, ui32 nLables, ui8*
             {
                 *((ui8*)bytes) = cmd.operand[i].ivalue;
                 bytes += sizeof(ui8);
-                if (cmd.code.bits.longCommand && opType == OPERAND_MEM_BY_REG)
+                if (cmd.bits.longCommand && opType == OPERAND_MEM_BY_REG)
                 {
                     *((ui32*)bytes) = cmd.extend[i];
                     bytes += sizeof(ui32);

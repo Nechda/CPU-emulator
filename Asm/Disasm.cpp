@@ -26,7 +26,7 @@ static C_string getCommandName(Command cmd)
     static std::string tmp;
     tmp = "";
     for (int i = 0; i < COMMAND_TABLE_SIZE; i++)
-        if (commandTable[i].machineCode >> 8 == cmd.code.bits.opCode)
+        if (commandTable[i].machineCode >> 10 == cmd.bits.opCode)
         {
             tmp = commandTable[i].command;
             break;
@@ -84,33 +84,35 @@ AsmError Disassembler::getCode(ui8* bytes, ui32 nBytes, FILE* outStream = stdout
     ui8* strPtr = bytes;
     Command cmd;
     C_string commandName = NULL;
-    C_string operandStr[2] = { NULL, NULL };
+    C_string operandStr[3] = { NULL, NULL, NULL };
     char strBuf[32] = {};
 
     //fprintf(outStream, "Offset: Lexema:\n");
     fprintf(outStream, ".text\n");
     while (bytes < endPtr)
     {
-        cmd.code.marchCode = *((Mcode*)bytes);
+        cmd.bits.marchCode = *((Mcode*)bytes);
         //fprintf(outStream, "0x%04X: ", bytes - strPtr);
         bytes += sizeof(Mcode);
         commandName = getCommandName(cmd);
         if (!commandName)
         {
-            logger.push("Disassembler error", "The 0x%X code doesn't match any commands", cmd.code.marchCode & 0xFFFF);
+            logger.push("Disassembler error", "The 0x%X code doesn't match any commands", cmd.bits.marchCode & 0xFFFF);
             return ASM_ERROR_INVALID_MACHINE_CODE;
         }
 
-        if (cmd.code.bits.nOperands > 2)
+        /*
+        if (cmd.bits.nOperands > 2)
         {
-            logger.push("Disassembler error", "Invalid number of operands: %d, should be less than 3", cmd.code.bits.nOperands);
+            logger.push("Disassembler error", "Invalid number of operands: %d, should be less than 3", cmd.bits.nOperands);
             return ASM_ERROR_INVALID_OPERANDS_NUMBER;
         }
+        */
 
 
         fprintf(outStream, "%s ", commandName);
         bool isInvalidOperands = 0;
-        for (int i = 0; i < cmd.code.bits.nOperands; i++)
+        for (int i = 0; i < cmd.bits.nOperands; i++)
         {
             OperandType opType = getOperandType(cmd, i);
             if (opType == OPERAND_NUMBER || opType == OPERAND_MEMORY)
@@ -124,7 +126,7 @@ AsmError Disassembler::getCode(ui8* bytes, ui32 nBytes, FILE* outStream = stdout
             {
                 cmd.operand[i].ivalue = *((ui8*)bytes);
                 bytes += sizeof(ui8);
-                if (cmd.code.bits.longCommand && opType == OPERAND_MEM_BY_REG)
+                if (cmd.bits.longCommand && opType == OPERAND_MEM_BY_REG)
                 {
                     cmd.extend[i] = *((ui32*)bytes);
                     sprintf(strBuf, "%s+0x%X", getRegisterName(cmd.operand[i].ivalue), cmd.extend[i]);
@@ -149,7 +151,7 @@ AsmError Disassembler::getCode(ui8* bytes, ui32 nBytes, FILE* outStream = stdout
                 fprintf(outStream, "%s", operandStr[i]);
             if (opType == OPERAND_MEMORY || opType == OPERAND_MEM_BY_REG)
                 fprintf(outStream, "[%s]", operandStr[i]);
-            if (cmd.code.bits.nOperands == 2 && i == 0)
+            if (cmd.bits.nOperands > 1 && i != cmd.bits.nOperands - 1)
                 fprintf(outStream, ", ");
 
         }
@@ -185,7 +187,7 @@ AsmError Disassembler::getCode(ui8* bytes, ui32 nBytes, FILE* outStream = stdout
 
 /*
 \brief  Производящая дизасемблирование бинарника
-\param  [in]  code       Строка байтов, которую будем дизасемблировать
+\param  [in]  bits       Строка байтов, которую будем дизасемблировать
 \param  [in]  size       Количество байтов в массиве
 \param  [in]  outStream  Поток вывода (может быть файлом)
 \return Код ошибки. В случае успеха возвращается ASM_OK.
@@ -206,7 +208,7 @@ AsmError Disassembler::disasm(const ui8* code, int size, FILE* outStream)
 void Disassembler::disasmCommand(Command cmd, FILE* outStream = stdout)
 {
     C_string commandName = NULL;
-    C_string operandStr[2] = { NULL, NULL };
+    C_string operandStr[3] = { NULL, NULL, NULL };
     char strBuf[32];
     Assert_c(outStream);
     if (!outStream)
@@ -221,20 +223,20 @@ void Disassembler::disasmCommand(Command cmd, FILE* outStream = stdout)
     commandName = getCommandName(cmd);
     if (!commandName)
     {
-        logger.push("Disassembler error", "The 0x%X code doesn't match any commands", cmd.code.bits.opCode & 0xFFFF);
+        logger.push("Disassembler error", "The 0x%X code doesn't match any commands", cmd.bits.opCode & 0xFFFF);
         return;
     }
 
     fprintf(outStream, "%s ", commandName);
     bool isInvalidOperands = 0;
-    for (int i = 0; i < cmd.code.bits.nOperands; i++)
+    for (int i = 0; i < cmd.bits.nOperands; i++)
     {
         OperandType opType = getOperandType(cmd, i);
         if (opType == OPERAND_NUMBER || opType == OPERAND_MEMORY)
             operandStr[i] = getStrByNumber(cmd.operand[i].ivalue);
         if (opType == OPERAND_REGISTER || opType == OPERAND_MEM_BY_REG)
         {
-            if (cmd.code.bits.longCommand && opType == OPERAND_MEM_BY_REG)
+            if (cmd.bits.longCommand && opType == OPERAND_MEM_BY_REG)
             {
                 sprintf(strBuf, "%s+0x%X", getRegisterName(cmd.operand[i].ivalue), cmd.extend[i]);
                 operandStr[i] = strBuf;
@@ -256,7 +258,7 @@ void Disassembler::disasmCommand(Command cmd, FILE* outStream = stdout)
             fprintf(outStream, "%s", operandStr[i]);
         if (opType == OPERAND_MEMORY || opType == OPERAND_MEM_BY_REG)
             fprintf(outStream, "[%s]", operandStr[i]);
-        if (cmd.code.bits.nOperands == 2 && i == 0)
+        if (cmd.bits.nOperands > 1 && i != cmd.bits.nOperands - 1)
             fprintf(outStream, ", ");
     }
     fprintf(outStream, "\n");
@@ -278,24 +280,24 @@ AsmError Disassembler::generateCommandList(vector<Command>& commands, i8* bytes,
     while (bytes < endPtr)
     {
         cmd = {};
-        cmd.code.marchCode = *((Mcode*)bytes);
+        cmd.bits.marchCode = *((Mcode*)bytes);
         bytes += sizeof(Mcode);
         cmd.sizeCommand += sizeof(Mcode);
 
         if (!getCommandName(cmd))
         {
-            logger.push("Disassembler error", "The 0x%X code doesn't match any commands", cmd.code.bits.opCode & 0xFFFF);
+            logger.push("Disassembler error", "The 0x%X code doesn't match any commands", cmd.bits.opCode & 0xFFFF);
             return ASM_ERROR_INVALID_MACHINE_CODE;
         }
 
-        if (cmd.code.bits.nOperands > 2)
+        if (cmd.bits.nOperands > 2)
         {
-            logger.push("Disassembler error", "Invalid number of operands: %d, should be less than 3", cmd.code.bits.nOperands);
+            logger.push("Disassembler error", "Invalid number of operands: %d, should be less than 3", cmd.bits.nOperands);
             return ASM_ERROR_INVALID_OPERANDS_NUMBER;
         }
 
         bool isInvalidOperands = 0;
-        for (int i = 0; i < cmd.code.bits.nOperands; i++)
+        for (int i = 0; i < cmd.bits.nOperands; i++)
         {
             OperandType opType = getOperandType(cmd, i);
             if (opType == OPERAND_NUMBER || opType == OPERAND_MEMORY)
@@ -310,7 +312,7 @@ AsmError Disassembler::generateCommandList(vector<Command>& commands, i8* bytes,
                 cmd.operand[i].ivalue = *((ui8*)bytes);
                 bytes += sizeof(ui8);
                 cmd.sizeCommand += sizeof(ui8);
-                if (cmd.code.bits.longCommand && opType == OPERAND_MEM_BY_REG)
+                if (cmd.bits.longCommand && opType == OPERAND_MEM_BY_REG)
                 {
                     cmd.extend[i] = *((ui32*)bytes);
                     bytes += sizeof(ui32);
