@@ -32,7 +32,6 @@
         <col style="width: 15%;">
         <col style="width: 25%;">
     </colgroup>
-
     <tbody>
         <tr>
             <th colspan="2" align="center">Распределение частот</th>
