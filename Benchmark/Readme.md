@@ -28,49 +28,44 @@
 **Распредение частотности использования четверок команд процессора**
 
 <table>
-  <thead>
-    <tr>
-      <th align="center">Распределение частот</th>
-      <th align="center">Полная диаграмма</th>
-    </tr>
-  </thead>
-  <tbody>
-    <td>
-      <table>
-        <thead>
-          <th align="center">Частота появления, %</th>
-          <th align="center">Команды</th>
-        </thead>
-        <tbody>
-          <tr>
+    <colgroup>
+        <col style="width: 15%;">
+        <col style="width: 25%;">
+    </colgroup>
+
+    <tbody>
+        <tr>
+            <th colspan="2" align="center">Распределение частот</th>
+            <th align="center" rowspan="2">Полная диаграмма</th>
+        </tr>
+        <tr>
+            <td align="center">Частота появления, %</td>
+            <td align="center">Команды</td>
+        </tr>
+        <tr>
             <td>6.560</td><td> FMUL reg , gen mem<br> FADD reg , reg<br> MOV reg , gen mem<br> FMUL reg , gen mem<br> </td>
-          </tr>
-          <tr>
+            <td rowspan="7">
+            <a target="_blank" rel="noopener noreferrer" href="/Nechda/CPU-emulator/blob/main/Benchmark/SU.svg"><img style="max-width:100%;" src="/Nechda/CPU-emulator/raw/main/Benchmark/SU.svg"></a></td>
+        </tr>
+        <tr>
             <td>6.560</td><td> FADD reg , reg<br> MOV reg , gen mem<br> FMUL reg , gen mem<br> FADD reg , reg<br> </td>
-          </tr>
-          <tr>
+        </tr>
+        <tr>
             <td>6.560</td><td> MOV reg , gen mem<br> FMUL reg , gen mem<br> FADD reg , reg<br> MOV reg , gen mem<br> </td>
-          </tr>
-          <tr>
+        </tr>
+        <tr>
             <td>4.541</td><td> MOV reg , reg<br> FADD reg , reg<br> FADD reg , reg<br> POP reg<br> </td>
-          </tr>
-          <tr>
+        </tr>
+        <tr>
             <td>4.541</td><td> XOR reg , reg<br> MOV reg , reg<br> FADD reg , reg<br> FADD reg , reg<br> </td>
-          </tr>
-          <tr>
+        </tr>
+        <tr>
             <td>4.541</td><td> FMUL reg , gen mem<br> FMUL reg , gen mem<br> FMUL reg , gen mem<br> XOR reg , reg<br> </td>
-          </tr>
-          <tr>
+        </tr>
+        <tr>
             <td>...</td><td> ... </td>
-          </tr>
-        </tbody>
-        </table>
-    </td>
-    <td>
-      <img src="SU.svg">
-    </td>
-  </tr>
-  </tbody>
+        </tr>
+    </tbody>
 </table>
 
 
