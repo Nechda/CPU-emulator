@@ -43,8 +43,7 @@
         </tr>
         <tr>
             <td>6.560</td><td> FMUL reg , gen mem<br> FADD reg , reg<br> MOV reg , gen mem<br> FMUL reg , gen mem<br> </td>
-            <td rowspan="7">
-            <a target="_blank" rel="noopener noreferrer" href="/Nechda/CPU-emulator/blob/main/Benchmark/SU.svg"><img style="max-width:100%;" src="/Nechda/CPU-emulator/raw/main/Benchmark/SU.svg"></a></td>
+            <td rowspan="7"><img src="SU.svg"></td>
         </tr>
         <tr>
             <td>6.560</td><td> FADD reg , reg<br> MOV reg , gen mem<br> FMUL reg , gen mem<br> FADD reg , reg<br> </td>
