@@ -275,7 +275,7 @@ AsmError Disassembler::generateCommandList(vector<Command>& commands, i8* bytes,
     i8* strPtr = bytes;
     Command cmd;
     C_string commandName = NULL;
-    C_string operandStr[2] = { NULL, NULL };
+    C_string operandStr[3] = { NULL, NULL, NULL };
 
     while (bytes < endPtr)
     {
@@ -290,11 +290,6 @@ AsmError Disassembler::generateCommandList(vector<Command>& commands, i8* bytes,
             return ASM_ERROR_INVALID_MACHINE_CODE;
         }
 
-        if (cmd.bits.nOperands > 2)
-        {
-            logger.push("Disassembler error", "Invalid number of operands: %d, should be less than 3", cmd.bits.nOperands);
-            return ASM_ERROR_INVALID_OPERANDS_NUMBER;
-        }
 
         bool isInvalidOperands = 0;
         for (int i = 0; i < cmd.bits.nOperands; i++)

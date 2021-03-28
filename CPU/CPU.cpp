@@ -103,7 +103,10 @@ ui32* getRegisterPtr(ui8 number)
 {
     if (number > sizeof(myCPU.Register) / sizeof(ui32))
         return nullptr;
-    return (ui32*)&myCPU.Register + (number - 1);
+    if (10 <= number && number <= 17)
+        return (ui32*)&myCPU.Register.lr0 + 4 * (number - 10);
+    else
+        return (ui32*)&myCPU.Register + (number - 1);
 }
 
 /*
@@ -149,7 +152,7 @@ void CPU::init(const InputParams inParam)
     myCPU.isGraphMode = inParam.useGraphMode;
     myCPU.ramSize = inParam.memorySize;
 
-    if (myCPU.ramSize > 32 MB)
+    if (myCPU.ramSize > (32 << 20)) // 32 MB
     {
         myCPU.isValid = 0;
         logger.push("CPU error", "I'm not sure that you really want too much memory: %d.", myCPU.ramSize);
@@ -226,14 +229,24 @@ void CPU::dump(Stream outStream)
 
     fprintf(outStream, "CPU{\n");
     fprintf(outStream, "    Registers{\n");
+
     #define printRegInfo(regName)\
-    fprintf(outStream, "        " #regName ":0x%08X  (int: %011d) \t(float: %f)\n", myCPU.Register.##regName,myCPU.Register.##regName,*((float*)&myCPU.Register.##regName))
+        fprintf(outStream, "        " #regName ":0x%08X  (int: %011d) \t(float: %f)\n", myCPU.Register.##regName,myCPU.Register.##regName,*((float*)&myCPU.Register.##regName))
     printRegInfo(eax);printRegInfo(ebx);printRegInfo(ecx);printRegInfo(edx);
-    printRegInfo(esi);printRegInfo(edi);printRegInfo(ebp);printRegInfo(eip);
-    printRegInfo(efl);printRegInfo(ecs);printRegInfo(eds);printRegInfo(esp);
+    printRegInfo(esi);printRegInfo(edi);printRegInfo(ebp);printRegInfo(esp);
     #undef printRegInfo
+
+    #define printLongRegInfo(regName)\
+        fprintf(outStream, "%8s"#regName":","");\
+        for(ui8 i = 0; i < 4; i++)\
+            fprintf(outStream, "%08X\'", myCPU.Register.##regName.b[i]);\
+        fprintf(outStream, "\n");
+    printLongRegInfo(lr0);printLongRegInfo(lr1);printLongRegInfo(lr2);printLongRegInfo(lr3);
+    printLongRegInfo(lr4);printLongRegInfo(lr5);printLongRegInfo(lr6);printLongRegInfo(lr7);
+
+    #undef printLongRegInfo
+
     fprintf(outStream, "    }\n");
-   
     #ifdef DUMP_PRINT_MEMORY
     fprintf(outStream, "    RAM:\n");
     fprintf(outStream, "    Segment offset |  0x00  0x01  0x02  0x03  0x04  0x05  0x06  0x07  0x08  0x09  0x0A  0x0B  0x0C  0x0D  0x0E  0x0F\n");
@@ -289,6 +302,7 @@ void getOperandsPointer(Command* cmd, OperandUnion** dst, OperandUnion** op1, Op
     ui32 offset = 0;
     for (ui8 i = 0; i < cmd->bits.nOperands; i++)
     {
+        offset = 0;
         opType = getOperandType(*cmd, i);
         switch (opType)
         {
@@ -299,7 +313,6 @@ void getOperandsPointer(Command* cmd, OperandUnion** dst, OperandUnion** op1, Op
             *ptrOperands[i] = &cmd->operand[i].ivalue;
             break;
         case OPERAND_MEMORY:
-            offset = myCPU.Register.eds;
             offset += cmd->operand[i].ivalue;
             if (offset+sizeof(ui32) >= myCPU.ramSize)
             {
@@ -323,7 +336,7 @@ void getOperandsPointer(Command* cmd, OperandUnion** dst, OperandUnion** op1, Op
             *ptrOperands[i] = (ui32*)&myCPU.RAM[offset];
             break;
         case OPERAND_MEM_BY_REG:
-            offset = myCPU.Register.eds + static_cast<ui32>(*getRegisterPtr(cmd->operand[i].ivalue));
+            offset = static_cast<ui32>(*getRegisterPtr(cmd->operand[i].ivalue));
             if (cmd->bits.longCommand)
                 offset += cmd->extend[i];
             if (offset+sizeof(ui32)>= myCPU.ramSize)
@@ -387,21 +400,21 @@ const ui32 CPU::FUNCTION_TABLE_SIZE = sizeof(CPU::runFunction) / sizeof(CPU::Ptr
 
 
 /*
-\brief  Функция, запускает выполнение программы, начиная с текущего значение CPU.Register.eip
+\brief  Функция, запускает выполнение программы, начиная с текущего значение CPU.pc
 \param  [in]  writeResultInLog  Флаг, отвечающий за то, хотим ли мы увидеть результат работы программы в логе
 \return Возвращается код ошибки или CPU_OK
 */
 CPUerror CPU::evaluate()
 {
-    ui8* ptr = &myCPU.RAM[myCPU.Register.eip];
+    ui8* ptr = &myCPU.RAM[myCPU.pc];
     Command cmd;
 
     while (*((Mcode*)ptr) != ASM_HLT)
     {
-        ptr = &myCPU.RAM[myCPU.Register.eip];
+        ptr = &myCPU.RAM[myCPU.pc];
         cmd.bits.marchCode = *((Mcode*)ptr);
         ptr += sizeof(Mcode);
-        myCPU.Register.eip += sizeof(Mcode);
+        myCPU.pc += sizeof(Mcode);
 
         for (int index = 0; index < cmd.bits.nOperands; index++)
         {
@@ -409,19 +422,19 @@ CPUerror CPU::evaluate()
             if (opType == OPERAND_REGISTER || opType == OPERAND_MEM_BY_REG)
             {
                 cmd.operand[index].ivalue = *((ui8*)ptr);
-                myCPU.Register.eip += sizeof(ui8);
+                myCPU.pc += sizeof(ui8);
                 ptr += sizeof(ui8);
                 if (cmd.bits.longCommand && opType == OPERAND_MEM_BY_REG)
                 {
                     cmd.extend[index] = *((ui32*)ptr);
-                    myCPU.Register.eip += sizeof(ui32);
+                    myCPU.pc += sizeof(ui32);
                     ptr += sizeof(ui32);
                 }
             }
             if (opType == OPERAND_NUMBER || opType == OPERAND_MEMORY)
             {
                 cmd.operand[index].ivalue = *((ui32*)ptr);
-                myCPU.Register.eip += sizeof(ui32);
+                myCPU.pc += sizeof(ui32);
                 ptr += sizeof(ui32);
             }
         }
@@ -445,9 +458,9 @@ CPUerror CPU::evaluate()
             return CPU_ERROR_INVALID_COMMAND;
         }
 
-        COLLECT_PROFILER_INFORMATION(profiler.pushCommand(cmd, myCPU.Register.eip));
+        COLLECT_PROFILER_INFORMATION(profiler.pushCommand(cmd, myCPU.pc));
         runFunction[indexCalledFunc](&cmd);
-        ptr = &myCPU.RAM[myCPU.Register.eip];
+        ptr = &myCPU.RAM[myCPU.pc];
 
         Disassembler::Instance().disasmCommand(cmd, logger.getStream());
 
@@ -458,13 +471,13 @@ CPUerror CPU::evaluate()
             dump(logger.getStream());
             return CPU_ERROR_EXCEPTION;
         }
-        if (myCPU.Register.eip >= myCPU.ramSize)
+        if (myCPU.pc >= myCPU.ramSize)
         {
             logger.push("CPU error", "Register epi quite big for RAM.");
             dump(logger.getStream());
             return CPU_ERROR_EPI_OUT_OF_RANE;
         }
-        myCPU.stack.data = &myCPU.RAM[myCPU.Register.ess];
+        myCPU.stack.data = &myCPU.RAM[0];
         myCPU.stack.size = myCPU.Register.esp;
 
         #ifdef CPU_GRAPH_MODE
@@ -507,10 +520,7 @@ CPUerror CPU::run(ui8* bytes, ui32 size, ui32 ptrStart)
 
     memcpy(&myCPU.RAM[ptrStart], bytes, size);
     *((Mcode*)&myCPU.RAM[ptrStart + size]) = ASM_HLT; ///на всякий случай поставим код остановки, после всей программы
-    myCPU.Register.eip = ptrStart;
-    myCPU.Register.ecs = ptrStart;
-    myCPU.Register.eds = ptrStart;
-    myCPU.Register.ess = ptrStart;
+    myCPU.pc = ptrStart;
     myCPU.Register.esp = size + 1; /// стек будет лежать за кодом
 
     #ifdef CPU_GRAPH_MODE
@@ -522,7 +532,7 @@ CPUerror CPU::run(ui8* bytes, ui32 size, ui32 ptrStart)
     }
     #endif
 
-    myCPU.stack.data = &myCPU.RAM[myCPU.Register.ess];
+    myCPU.stack.data = &myCPU.RAM[0];
     myCPU.stack.size = myCPU.Register.esp;
     CPUerror errorCode = evaluate();
 

@@ -10,9 +10,6 @@ const int ASM_ERROR_CODE = -1;
 
 using std::vector;
 
-#define KB * 1024
-#define MB * 1024 KB
-
 
 namespace Assembler
 {
@@ -58,7 +55,7 @@ namespace Assembler
                 ui8 typeSecond : 2;
                 ui8 typeThird  : 2;
                 ui8 longCommand: 1;
-                ui8            : 1;
+                ui8 reserved   : 1;
                 ui8 opCode     : 6;
             };
         }bits;

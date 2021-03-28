@@ -22,8 +22,9 @@ const Lexema registerTable[] =
 {
     {"eax",     1},{"ebx",     2},{"ecx",     3},{"edx",     4},
     {"esi",     5},{"edi",     6},{"esp",     7},{"ebp",     8},
-    {"eip",     9},{"eflags", 10},{"ecs",    11},{"eds",    12},
-    {"ess",    13}
+    {"MLRZ",    9},
+    {"lr0",    10},{"lr1",    11},{"lr2",    12},{"lr3",    13},
+    {"lr4",    14},{"lr5",    15},{"lr6",    16},{"lr7",    17},
 };
 
 const ui32 COMMAND_TABLE_SIZE = sizeof(commandTable) / sizeof(Lexema);

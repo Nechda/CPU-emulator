@@ -23,7 +23,7 @@ enum CPUerror
 };
 
 #define CPU_GRAPH_MODE
-#define CPU_PROFILER
+//#define CPU_PROFILER
 //#define DUMP_PRINT_MEMORY
 //#define CPU_SMART_PRINT_MEMORY
 
@@ -49,6 +49,7 @@ class CPU
         CPUerror evaluate();
         Profiler profiler;
         void* convertVirtualAddrToPhysical(ui32 addr);
+        using ui128 = struct { ui32 b[4]; };
     public:
         static struct CPUStruct
         {
@@ -67,9 +68,12 @@ class CPU
             {
                 ui32 eax; ui32 ebx; ui32 ecx; ui32 edx;
                 ui32 esi; ui32 edi; ui32 esp; ui32 ebp;
-                ui32 eip; ui32 efl; ui32 ecs; ui32 eds;
-                ui32 ess;
+
+                ui32 MLRZ; //mask of long register zeros
+                ui128 lr0; ui128 lr1; ui128 lr2; ui128 lr3;
+                ui128 lr4; ui128 lr5; ui128 lr6; ui128 lr7;
             }Register;
+            ui32 pc;
             struct
             {
                 union
