@@ -47,21 +47,6 @@ inline void toLowerStr(char* str)
     }
 }
 
-void prepareCompilatorsTable()
-{
-    for (int i = 0; i < COMMAND_TABLE_SIZE; i++)
-    {
-        if (!islower(commandTable[i].command[0]))
-            toLowerStr((char*)commandTable[i].command);
-    }
-}
-
-Compilator::Compilator()
-{
-    prepareCompilatorsTable();
-}
-
-
 
 /*
 \brief Функция проверяет, является ли строка числом
@@ -657,7 +642,7 @@ static AsmError genBytes(const char* codeLine, Label* lables, ui32 nLables, ui8*
         if (errorCode == ASM_ERROR_INVALID_OPERAND_TYPE_FOR_COMMAND)
         {
             logger.push("Compilator error", "Invalid type of operand for current command.");
-            Disassembler::Instance().disasmCommand(cmd, logger.getStream());
+            Disassembler::disasmCommand(cmd, logger.getStream());
             return ASM_ERROR_INVALID_OPERAND_TYPE_FOR_COMMAND;
         }
         if (errorCode == ASM_ERROR_INVALID_MACHINE_CODE)

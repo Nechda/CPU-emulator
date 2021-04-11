@@ -48,11 +48,11 @@
 
 #define make_code(start, offset, nOperands)\
     (start + offset) << 10 | 0 << 8 | 0 << 6 | 0 << 4 | 0 << 2 | (nOperands) 
-#define isInterruptOccur() if(myCPU.interruptCode) return;
+#define isInterruptOccur() if(context.interruptCode) return;
 #define isFiniteOperands()\
 {\
-    if (dst && !myCPU.interruptCode) myCPU.interruptCode |= !std::isfinite(dst->fvalue);\
-    if (src && !myCPU.interruptCode) myCPU.interruptCode |= !std::isfinite(src->fvalue);\
+    if (dst && !context.interruptCode) context.interruptCode |= !std::isfinite(dst->fvalue);\
+    if (src && !context.interruptCode) context.interruptCode |= !std::isfinite(src->fvalue);\
  }
 
 DEF(
@@ -114,7 +114,7 @@ DEF(
         isInterruptOccur();
 
         if (op2->ivalue == 0)
-            myCPU.interruptCode = 1;
+            context.interruptCode = 1;
         else
             dst->ivalue = op1->ivalue / op2->ivalue;
     }
@@ -145,12 +145,12 @@ DEF(
 
         ui8* data = (ui8*)dst;
         for (ui8 i = 0; i < sizeof(ui32); i++)
-            stackPop(&myCPU.stack, &data[sizeof(ui32) - 1 - i]);
+            stackPop(&context.stack, &data[sizeof(ui32) - 1 - i]);
 
         //в данной реализации процессора в качестве стека используется immortal stack,
         //соттветственно при push он растет в сторону больших адресов,
         //а при pop адрес вершины уменьшается
-        myCPU.Register.esp -= sizeof(ui32);
+        context.Register.esp -= sizeof(ui32);
     }
 )
 
@@ -164,12 +164,12 @@ DEF(
         isInterruptOccur();
         ui8* data = (ui8*)dst;
         for (ui8 i = 0; i < sizeof(ui32); i++)
-            stackPush(&myCPU.stack, &data[i]);
+            stackPush(&context.stack, &data[i]);
 
         //в данной реализации процессора в качестве стека используется immortal stack,
         //соттветственно при push он растет в сторону больших адресов,
         //а при pop адрес вершины уменьшается
-        myCPU.Register.esp += sizeof(ui32);
+        context.Register.esp += sizeof(ui32);
     }
 )
 
@@ -177,7 +177,7 @@ DEF(
     JMP,
     make_code(0,8,1), "N", "", "",
     {
-        myCPU.pc = cmd->operand[0].ivalue;
+        context.pc = cmd->operand[0].ivalue;
     }
 )
 
@@ -191,7 +191,7 @@ DEF(
         getOperandsPointer(cmd, &op1, &op2, &addr);
         isInterruptOccur();
         if (op1->ivalue == op2->ivalue)
-        myCPU.pc = addr->ivalue;
+        context.pc = addr->ivalue;
     }
 )
 
@@ -205,7 +205,7 @@ DEF(
         getOperandsPointer(cmd, &op1, &op2, &addr);
         isInterruptOccur();
         if (op1->ivalue != op2->ivalue)
-            myCPU.pc = addr->ivalue;
+            context.pc = addr->ivalue;
     }
 )
 
@@ -219,7 +219,7 @@ DEF(
         getOperandsPointer(cmd, &op1, &op2, &addr);
         isInterruptOccur();
         if (op1->ivalue > op2->ivalue)
-        myCPU.pc = addr->ivalue;
+        context.pc = addr->ivalue;
     }
 )
 
@@ -233,7 +233,7 @@ DEF(
         getOperandsPointer(cmd, &op1, &op2, &addr);
         isInterruptOccur();
         if (op1->ivalue >= op2->ivalue)
-        myCPU.pc = addr->ivalue;
+        context.pc = addr->ivalue;
     }
 )
 
@@ -247,11 +247,11 @@ DEF(
         getOperandsPointer(cmd, &dst, &src);
         isInterruptOccur();
 
-        ui8* data = (ui8*)&myCPU.pc;
+        ui8* data = (ui8*)&context.pc;
         for (ui8 i = 0; i < sizeof(ui32); i++)
-            stackPush(&myCPU.stack, &data[i]);
-        myCPU.Register.esp += sizeof(ui32);
-        myCPU.pc = cmd->operand[0].ivalue;
+            stackPush(&context.stack, &data[i]);
+        context.Register.esp += sizeof(ui32);
+        context.pc = cmd->operand[0].ivalue;
     }
 )
 
@@ -263,9 +263,9 @@ DEF(
 
         ui8* data = (ui8*)&ptrReturn;
         for (ui8 i = 0; i < sizeof(ui32); i++)
-            stackPop(&myCPU.stack, &data[sizeof(ui32) - 1 - i]);
-        myCPU.Register.esp -= sizeof(ui32);
-        myCPU.pc = ptrReturn;
+            stackPop(&context.stack, &data[sizeof(ui32) - 1 - i]);
+        context.Register.esp -= sizeof(ui32);
+        context.pc = ptrReturn;
     }
 )
 
@@ -438,7 +438,7 @@ DEF(
         getOperandsPointer(cmd, &op1, &op2, &addr);
         isInterruptOccur();
         if (isZero(op1->fvalue - op2->fvalue))
-        myCPU.pc =  addr->ivalue;
+        context.pc =  addr->ivalue;
     }
 )
 
@@ -452,7 +452,7 @@ DEF(
         getOperandsPointer(cmd, &op1, &op2, &addr);
         isInterruptOccur();
         if (!isZero(op1->fvalue - op2->fvalue))
-        myCPU.pc =  addr->ivalue;
+        context.pc =  addr->ivalue;
     }
 )
 
@@ -466,7 +466,7 @@ DEF(
         getOperandsPointer(cmd, &op1, &op2, &addr);
         isInterruptOccur();
         if (op1->fvalue > op2->fvalue)
-        myCPU.pc =  addr->ivalue;
+        context.pc =  addr->ivalue;
     }
 )
 
@@ -480,7 +480,7 @@ DEF(
         getOperandsPointer(cmd, &op1, &op2, &addr);
         isInterruptOccur();
         if (op1->fvalue >= op2->fvalue)
-        myCPU.pc =  addr->ivalue;
+        context.pc =  addr->ivalue;
     }
 )
 
@@ -524,7 +524,7 @@ DEF(
         isInterruptOccur();
 
         if (isZero(op2->ivalue))
-            myCPU.interruptCode = 1;
+            context.interruptCode = 1;
         else
             dst->fvalue = op1->fvalue / op2->fvalue;
     }
@@ -554,7 +554,7 @@ DEF(
         isFiniteOperands();
         isInterruptOccur();
         if(dst->fvalue < 0)
-            myCPU.interruptCode = 1;
+            context.interruptCode = 1;
         else
             dst->fvalue = sqrt(dst->fvalue);
     }
@@ -590,7 +590,7 @@ DEF(
     ABS,
     make_code(FPU_ISA_START_CODE,13,1), "RMB", "", "",
     {
-        OperandUnion* dst = (OperandUnion*)&myCPU.Register.eax;
+        OperandUnion* dst = (OperandUnion*)&context.Register.eax;
         OperandUnion* src = NULL;
         getOperandsPointer(cmd, &src, &dst);
         isInterruptOccur();
@@ -602,7 +602,7 @@ DEF(
     FABS,
     make_code(FPU_ISA_START_CODE,14,1), "RMB", "", "",
     {
-        OperandUnion* dst = (OperandUnion*)&myCPU.Register.eax;
+        OperandUnion* dst = (OperandUnion*)&context.Register.eax;
         OperandUnion* src = NULL;
         getOperandsPointer(cmd, &src, &dst);
         isInterruptOccur();
@@ -661,9 +661,9 @@ DEF(
 
 #define PUSH_REGISTER(reg)\
 {\
-    ui8* data = (ui8*)&myCPU.Register.##reg;\
+    ui8* data = (ui8*)&context.Register.##reg;\
     for (ui8 i = 0; i < sizeof(ui32); i++)\
-        stackPush(&myCPU.stack, &data[i]);\
+        stackPush(&context.stack, &data[i]);\
 }
 
 DEF(
@@ -671,9 +671,6 @@ DEF(
     make_code(ISIMD_ISA_START_CODE, 0, 0), "","", "",
     {
         isInterruptOccur();
-        
-        printf("it's pusha\n");
-
         PUSH_REGISTER(eax)
         PUSH_REGISTER(ebx)
         PUSH_REGISTER(ecx)
@@ -683,16 +680,16 @@ DEF(
         PUSH_REGISTER(ebp)
         
 
-        myCPU.Register.esp += 7 * sizeof(ui32);
+        context.Register.esp += 7 * sizeof(ui32);
     }
 )
 #undef PUSH_REGISTER
 
 #define POP_REGISTER(reg)\
 {\
-    ui8* data = (ui8*)&myCPU.Register.##reg;\
+    ui8* data = (ui8*)&context.Register.##reg;\
     for (ui8 i = 0; i < sizeof(ui32); i++)\
-        stackPop(&myCPU.stack, &data[sizeof(ui32) - 1 - i]);\
+        stackPop(&context.stack, &data[sizeof(ui32) - 1 - i]);\
 }
 
 DEF(
@@ -700,10 +697,6 @@ DEF(
     make_code(ISIMD_ISA_START_CODE, 1, 0), "", "", "",
     {
         isInterruptOccur();
-        
-        printf("it's popa\n");
-
-
         POP_REGISTER(ebp)
         POP_REGISTER(edi)
         POP_REGISTER(esi)
@@ -712,7 +705,7 @@ DEF(
         POP_REGISTER(ebx)
         POP_REGISTER(eax)
 
-        myCPU.Register.esp -= 7 * sizeof(ui32);
+        context.Register.esp -= 7 * sizeof(ui32);
     }
 )
 #undef POP_REGISTER
@@ -726,7 +719,7 @@ DEF(
     LLZA,
     make_code(ISIMD_ISA_START_CODE, 2, 0), "", "", "",
     {
-        OperandUnion* dst = (OperandUnion*)&myCPU.Register.lr0;
+        OperandUnion* dst = (OperandUnion*)&context.Register.lr0;
         memset(dst, 0, sizeof(ui32) * 4 * 8);
     }
 )
@@ -737,7 +730,7 @@ DEF(
     {
         Assert_long_register(cmd->operand[0].ivalue, LLZ);
         OperandUnion* dst = 
-            (OperandUnion*)(&myCPU.Register.lr0 + 4*sizeof(ui32)*(cmd->operand[0].ivalue - 10));
+            (OperandUnion*)(&context.Register.lr0 + 4*sizeof(ui32)*(cmd->operand[0].ivalue - 10));
         memset(dst, 0, sizeof(ui32) * 4);
     }
 )
@@ -798,7 +791,6 @@ DEF(
     LADD,
     make_code(ISIMD_ISA_START_CODE, 6, 3), "R", "R", "R",
     {
-        printf("ladd\n");
         LONGREGISTER_GET_OPERANDS(LADD);
         LONGREGISTER_DO_OPERATION(+, ivalue);
     }
@@ -858,7 +850,7 @@ DEF(
         {
             if (op2->ivalue == 0)
             {
-                myCPU.interruptCode = 1;
+                context.interruptCode = 1;
                 return;
             }
             dst->ivalue = op1->ivalue / op2->ivalue;
@@ -875,7 +867,7 @@ DEF(
         {
             if (isZero(op2->fvalue))
             {
-                myCPU.interruptCode = 1;
+                context.interruptCode = 1;
                 return;
             }
             dst->fvalue = op1->fvalue / op2->fvalue;
@@ -905,12 +897,12 @@ DEF(
         }info;
         info.mask = cmd->operand[1].ivalue;
 
-        ui32* lr = (ui32*)&myCPU.Register.lr0 + 4 * (cmd->operand[0].ivalue - 10);
+        ui32* lr = (ui32*)&context.Register.lr0 + 4 * (cmd->operand[0].ivalue - 10);
         
-        ((ui32*)&myCPU.Register.eax)[info.r0] = lr[0];
-        ((ui32*)&myCPU.Register.eax)[info.r1] = lr[1];
-        ((ui32*)&myCPU.Register.eax)[info.r2] = lr[2];
-        ((ui32*)&myCPU.Register.eax)[info.r3] = lr[3];
+        ((ui32*)&context.Register.eax)[info.r0] = lr[0];
+        ((ui32*)&context.Register.eax)[info.r1] = lr[1];
+        ((ui32*)&context.Register.eax)[info.r2] = lr[2];
+        ((ui32*)&context.Register.eax)[info.r3] = lr[3];
     }
 )
 
@@ -932,11 +924,11 @@ DEF(
         }info;
         info.mask = cmd->operand[1].ivalue;
 
-        ui32* lr = (ui32*)&myCPU.Register.lr0 + 4 * (cmd->operand[0].ivalue - 10);
-        lr[0] = ((ui32*)&myCPU.Register.eax)[info.r0];
-        lr[1] = ((ui32*)&myCPU.Register.eax)[info.r1];
-        lr[2] = ((ui32*)&myCPU.Register.eax)[info.r2];
-        lr[3] = ((ui32*)&myCPU.Register.eax)[info.r3];
+        ui32* lr = (ui32*)&context.Register.lr0 + 4 * (cmd->operand[0].ivalue - 10);
+        lr[0] = ((ui32*)&context.Register.eax)[info.r0];
+        lr[1] = ((ui32*)&context.Register.eax)[info.r1];
+        lr[2] = ((ui32*)&context.Register.eax)[info.r2];
+        lr[3] = ((ui32*)&context.Register.eax)[info.r3];
     }
 )
 
@@ -946,8 +938,8 @@ DEF(
     make_code(ISIMD_ISA_START_CODE, 16, 1), "R", "", "",
     {
         Assert_long_register(cmd->operand[0].ivalue, LSHRINKA);
-        ui32* lr = (ui32*)&myCPU.Register.lr0 + 4 * (cmd->operand[0].ivalue - 10);
-        memcpy(&myCPU.Register.eax, lr, 4 * sizeof(ui32));
+        ui32* lr = (ui32*)&context.Register.lr0 + 4 * (cmd->operand[0].ivalue - 10);
+        memcpy(&context.Register.eax, lr, 4 * sizeof(ui32));
     }
 )
 
@@ -956,7 +948,37 @@ DEF(
     make_code(ISIMD_ISA_START_CODE, 17, 1), "R", "", "",
     {
         Assert_long_register(cmd->operand[0].ivalue, LEXPANDA);
-        ui32* lr = (ui32*)&myCPU.Register.lr0 + 4 * (cmd->operand[0].ivalue - 10);
-        memcpy(lr, &myCPU.Register.eax, 4 * sizeof(ui32));
+        ui32* lr = (ui32*)&context.Register.lr0 + 4 * (cmd->operand[0].ivalue - 10);
+        memcpy(lr, &context.Register.eax, 4 * sizeof(ui32));
+    }
+)
+
+DEF(
+    LACCUM,
+    make_code(ISIMD_ISA_START_CODE, 18, 2), "RMB", "R", "",
+    {
+        Assert_long_register(cmd->operand[1].ivalue, LEXPANDA);
+        OperandUnion* dst = NULL;
+        OperandUnion* src = NULL;
+        getOperandsPointer(cmd, &dst, &src);
+        isInterruptOccur();
+        dst->ivalue = 0;
+        for (ui8 i = 0; i < 4; i++, src++)
+            dst->ivalue += src->ivalue;
+    }
+)
+
+DEF(
+    LFACCUM,
+    make_code(ISIMD_ISA_START_CODE, 19, 2), "RMB", "R", "",
+    {
+        Assert_long_register(cmd->operand[1].ivalue, LEXPANDA);
+        OperandUnion* dst = NULL;
+        OperandUnion* src = NULL;
+        getOperandsPointer(cmd, &dst, &src);
+        isInterruptOccur();
+        dst->ivalue = 0;
+        for (ui8 i = 0; i < 4; i++, src++)
+            dst->fvalue += src->fvalue;
     }
 )

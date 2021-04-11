@@ -31,12 +31,7 @@ static C_string getCommandName(Command cmd)
             tmp = commandTable[i].command;
             break;
         }
-    if (tmp.size())
-    {
-        std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c) { return std::tolower(c); });
-        return (C_string)tmp.c_str();
-    }
-    return NULL;
+    return tmp.size() ? (C_string)tmp.c_str() : NULL;
 }
 
 /*
@@ -265,18 +260,43 @@ void Disassembler::disasmCommand(Command cmd, FILE* outStream = stdout)
 }
 
 
-AsmError Disassembler::generateCommandList(vector<Command>& commands, i8* bytes, i32 nBytes)
+/*
+\brief  Функция генерирует массив команд и массив байт из секции .data по бинарнику
+\param  [in,out] commands  ссылка на вектор, в который будут записываться команды
+\param  [in,out] bytesFromDataSection ссылка на вектор для хранения байт из секции .data
+\param  [in]     bytes     указатель на байты, считанные из бинарника
+\param  [in]     nBytes    число байт в считанном файле
+\return Если все OK, то вернется ASM_OK в противном случае возвращается код ошибки
+\note   В последнем элементе вектора команд в поле extend[0] хранится размер секции .text
+*/
+AsmError Disassembler::generateCommandList(vector<Command>& commands, vector<ui8>& bytesFromDataSection, i8* bytes, i32 nBytes)
 {
     Assert_c(bytes);
     if (!bytes)
         return ASM_ERROR_INVALID_INPUT_DATA;
 
+
+    i8* endPtr = bytes + nBytes;
+    endPtr -= sizeof(ui32);
+    ui32 sectionTextSize = *((ui32*)endPtr);
+    //printf("section .text size: %d\n", sectionTextSize);
+    endPtr = bytes + sectionTextSize;
+
+    i8* strPtr = bytes;
+    Command cmd;
+    C_string commandName = NULL;
+    C_string operandStr[3] = { NULL, NULL, NULL };
+    char strBuf[32] = {};
+
+    /*
     i8* endPtr = bytes + nBytes;
     i8* strPtr = bytes;
     Command cmd;
     C_string commandName = NULL;
     C_string operandStr[3] = { NULL, NULL, NULL };
+    */
 
+    //parse .text section
     while (bytes < endPtr)
     {
         cmd = {};
@@ -302,20 +322,20 @@ AsmError Disassembler::generateCommandList(vector<Command>& commands, i8* bytes,
                 cmd.sizeCommand += sizeof(ui32);
             }
             else
-            if (opType == OPERAND_REGISTER || opType == OPERAND_MEM_BY_REG)
-            {
-                cmd.operand[i].ivalue = *((ui8*)bytes);
-                bytes += sizeof(ui8);
-                cmd.sizeCommand += sizeof(ui8);
-                if (cmd.bits.longCommand && opType == OPERAND_MEM_BY_REG)
+                if (opType == OPERAND_REGISTER || opType == OPERAND_MEM_BY_REG)
                 {
-                    cmd.extend[i] = *((ui32*)bytes);
-                    bytes += sizeof(ui32);
-                    cmd.sizeCommand += sizeof(ui32);
+                    cmd.operand[i].ivalue = *((ui8*)bytes);
+                    bytes += sizeof(ui8);
+                    cmd.sizeCommand += sizeof(ui8);
+                    if (cmd.bits.longCommand && opType == OPERAND_MEM_BY_REG)
+                    {
+                        cmd.extend[i] = *((ui32*)bytes);
+                        bytes += sizeof(ui32);
+                        cmd.sizeCommand += sizeof(ui32);
+                    }
                 }
-            }
-            else
-                isInvalidOperands |= 1;
+                else
+                    isInvalidOperands |= 1;
         }
 
         if (isInvalidOperands)
@@ -326,6 +346,15 @@ AsmError Disassembler::generateCommandList(vector<Command>& commands, i8* bytes,
 
         commands.push_back(cmd);
     }
+    cmd.extend[0] = sectionTextSize;
+    commands.push_back(cmd);
+
+    bytes = strPtr + sectionTextSize;
+    // the last 4 bytes is for .text section size
+    const i32 dataSectionSize = nBytes - sizeof(ui32) - sectionTextSize;
+    bytesFromDataSection.reserve(dataSectionSize);
+    for (ui32 i = 0; i < dataSectionSize; i++, bytes++)
+        bytesFromDataSection.push_back(*bytes);
+
     return ASM_OK;
 }
-

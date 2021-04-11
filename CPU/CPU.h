@@ -23,10 +23,17 @@ enum CPUerror
 };
 
 #define CPU_GRAPH_MODE
-//#define CPU_PROFILER
+#define CPU_PROFILER
 //#define DUMP_PRINT_MEMORY
 //#define CPU_SMART_PRINT_MEMORY
 
+#ifndef ASM2LLVM_PROJECT
+    #include "Profiler/Profiler.h"
+    #define ASM2LLVM_CODE_FILTER( code ) code
+#else
+    #define ASM2LLVM_CODE_FILTER( code )
+    #define CPU_PROFILER 0
+#endif
 
 
 class CPU
@@ -47,11 +54,11 @@ class CPU
         CPU(const CPU&) = delete;
         CPU& operator=(const CPU) = delete;
         CPUerror evaluate();
-        Profiler profiler;
+        ASM2LLVM_CODE_FILTER(Profiler profiler);
         void* convertVirtualAddrToPhysical(ui32 addr);
         using ui128 = struct { ui32 b[4]; };
     public:
-        static struct CPUStruct
+        static struct Context
         {
             bool isValid = 0;
             int  interruptCode = 0;
@@ -68,8 +75,7 @@ class CPU
             {
                 ui32 eax; ui32 ebx; ui32 ecx; ui32 edx;
                 ui32 esi; ui32 edi; ui32 esp; ui32 ebp;
-
-                ui32 MLRZ; //mask of long register zeros
+                ui32 _;
                 ui128 lr0; ui128 lr1; ui128 lr2; ui128 lr3;
                 ui128 lr4; ui128 lr5; ui128 lr6; ui128 lr7;
             }Register;
@@ -90,7 +96,7 @@ class CPU
             }ControlRegister;
             ui8* RAM = NULL;
             Stack(ui8) stack;
-        }myCPU;
+        }context;
         typedef void(*PtrToFunction)(Assembler::Command*);
         static PtrToFunction runFunction[];
         static const ui32 FUNCTION_TABLE_SIZE;

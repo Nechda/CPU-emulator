@@ -60,7 +60,7 @@ void run_Helper()
 int run_Compilator(char* buffer, FILE* outStream, const InputParams inputParams)
 {$
     int errorCode = 0;
-    errorCode = Assembler::Compilator::Instance().compile(buffer, outStream);
+    errorCode = Assembler::Compilator::compile(buffer, outStream);
     printf("Compilation finished with the code: %d (%s)\n", errorCode,
         getStringByErrorCode(static_cast<Assembler::AsmError>(errorCode)));
     if (!inputParams.noLogFileFlag && errorCode)
@@ -74,7 +74,7 @@ int run_Compilator(char* buffer, FILE* outStream, const InputParams inputParams)
 int run_Disassembler(char* buffer,unsigned nBytes, FILE* outStream, const InputParams inputParams)
 {$
     int errorCode = 0;
-    errorCode = Assembler::Disassembler::Instance().disasm((ui8*)buffer, nBytes, outStream);
+    errorCode = Assembler::Disassembler::disasm((ui8*)buffer, nBytes, outStream);
     printf("Disassembler finished with the code: %d (%s)\n", errorCode,
         getStringByErrorCode(static_cast<Assembler::AsmError>(errorCode)));
     if (!inputParams.noLogFileFlag && errorCode)

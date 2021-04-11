@@ -2,7 +2,7 @@
 
 #define CHECK_MEMORY_BOUND()\
     do{\
-    if (addr >= myCPU.ramSize)\
+    if (addr >= context.ramSize)\
     {\
         logger.push(\
             "Invalid memory access",\
@@ -15,11 +15,11 @@
 void* CPU::convertVirtualAddrToPhysical(ui32 addr)
 {
 
-    if ( myCPU.ControlRegister.GPT == -1
-    ||   myCPU.ControlRegister.CR.pureMappingAddr > addr )
+    if ( context.ControlRegister.GPT == -1
+    ||   context.ControlRegister.CR.pureMappingAddr > addr )
     {
         CHECK_MEMORY_BOUND();
-        return &myCPU.RAM[addr];
+        return &context.RAM[addr];
     }
 
     union
@@ -34,7 +34,7 @@ void* CPU::convertVirtualAddrToPhysical(ui32 addr)
     }dividedAddr;
 
     dividedAddr.addr = addr;
-    ui32 pageTable = myCPU.RAM[myCPU.ControlRegister.GPT + (dividedAddr.tableIndex << 2)];
+    ui32 pageTable = context.RAM[context.ControlRegister.GPT + (dividedAddr.tableIndex << 2)];
     if (pageTable == -1)
     {
         logger.push(
@@ -56,9 +56,9 @@ void* CPU::convertVirtualAddrToPhysical(ui32 addr)
         ui32 info;
     }pageInfo;
 
-    pageInfo.info = *((ui32*)&myCPU.RAM[pageTable + dividedAddr.pageIndex]);
+    pageInfo.info = *((ui32*)&context.RAM[pageTable + dividedAddr.pageIndex]);
 
     addr = (pageInfo.physAddr << 12) + dividedAddr.offset;
     CHECK_MEMORY_BOUND();
-    return &myCPU.RAM[addr];
+    return &context.RAM[addr];
 }
