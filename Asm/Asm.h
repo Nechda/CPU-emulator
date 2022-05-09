@@ -1,6 +1,7 @@
 #pragma once
 #include <stdio.h>
 #include "Tools/Logger.h"
+#include "Tools/Support.h"
 #include "Types.h"
 #include <vector>
 
@@ -33,18 +34,27 @@ namespace Assembler
     };
     C_string getStringByErrorCode(AsmError errorCode); 
 
+    struct Instruction;
+    enum class Opcode;
 
-    union OperandUnion
+    /*
+    \brief Допустимые типы операндов
+    */
+    enum OperandType
     {
-        ui32 ivalue;
-        float fvalue;
+        OPERAND_REGISTER,
+        OPERAND_NUMBER,
+        OPERAND_MEMORY,
+        OPERAND_MEM_BY_REG
     };
 
     /*
     \brief Посредствам данной стуктуры реализуется "команда" процессора
     */
-    struct Command
+    struct Instruction
     {
+        using IType = i32;
+        using FType = float;
         union
         {
             ui16 marchCode;
@@ -59,40 +69,28 @@ namespace Assembler
                 ui8 opCode     : 6;
             };
         }bits;
-        OperandUnion operand[3] = { 0, 0, 0 };
+        ui32 operand[3] = { 0, 0, 0 };
         ui32 extend[3] = { 0, 0, 0 };
         ui8 sizeCommand = 0;
+        OperandType get_operand_type(int idx);
+        void set_operand_type(int opIndex, OperandType type);
+        Pointer ops[3] = {};
     };
 
-    enum CommandType
+    enum class Opcode
     {
         #define DEF(name, mCode, vStr1, vSrt2, vStr3, code)\
-            CMD_##name,
+            name,
             #include "Extend.h"
         #undef DEF
     };
 
-
-    /*
-    \brief Допустимые типы операндов
-    */
-    enum OperandType
-    {
-        OPERAND_REGISTER,
-        OPERAND_NUMBER,
-        OPERAND_MEMORY,
-        OPERAND_MEM_BY_REG
-    };
-    void setOperandType(Command& marchCode, ui8 opIndex, OperandType type);
-    OperandType getOperandType(Command marchCode, ui8 opIndex);
-
-
     class Disassembler
     {
         public:
-            static AsmError generateCommandList(vector<Command>& commands, vector<ui8>& bytesFromDataSection, i8* bytes, i32 nBytes);
+            static AsmError generateCommandList(vector<Instruction>& commands, vector<ui8>& bytesFromDataSection, i8* bytes, i32 nBytes);
             static AsmError disasm(const ui8* code, int size, FILE* stream);
-            static void disasmCommand(Command cmd, FILE* stream);
+            static void disasmCommand(Instruction cmd, FILE* stream);
         private:
             static AsmError getCode(ui8* bytes, ui32 nBytes, FILE* outStream);
             Disassembler() {};

@@ -6,7 +6,7 @@
 #include <ctype.h>
 #include <iostream>
 
-#include "StaticString.h"
+//#include "StaticString.h"
 
 
 using namespace Assembler;
@@ -25,10 +25,10 @@ static constexpr Lexema generetaCommand(Lexema origin)
 
 
 Lexema commandTable[] = {
-    #define DEF(name, mCode, vStr1, vStr2, vStr3, code) \
-        generetaCommand({#name, mCode, vStr1, vStr2, vStr3}),
-    #include "Extend.h"
-    #undef DEF
+    //#define DEF(name, mCode, vStr1, vStr2, vStr3, code) \
+    //    generetaCommand({#name, mCode, vStr1, vStr2, vStr3}),
+    //#include "Extend.h"
+    //#undef DEF
 };
 
 const Lexema registerTable[] =
@@ -50,21 +50,21 @@ const ui32 REGISTER_TABLE_SIZE = sizeof(registerTable) / sizeof(Lexema);
 \param  [in]  opIndex       Номер операнда
 \param  [in]  type          Тип операнда
 */
-void Assembler::setOperandType(Command& cmd, ui8 opIndex, OperandType type)
+void Assembler::Instruction::set_operand_type(int opIndex, OperandType type)
 {
     switch (opIndex + 1)
     {
         case 1: 
-            cmd.bits.typeFirst = (ui8)type & 0b11;
+            bits.typeFirst = (ui8)type & 0b11;
             break;
         case 2:
-            cmd.bits.typeSecond = (ui8)type & 0b11;
+            bits.typeSecond = (ui8)type & 0b11;
             break;
         case 3:
-            cmd.bits.typeThird = (ui8)type & 0b11;
+            bits.typeThird = (ui8)type & 0b11;
             break;
         default:
-            printf("Undefined operandType, cmd: 0x%X\n", cmd.bits.marchCode);
+            printf("Undefined operandType, cmd: 0x%X\n", bits.marchCode);
             break;
     }
 }
@@ -76,19 +76,19 @@ void Assembler::setOperandType(Command& cmd, ui8 opIndex, OperandType type)
 \param  [in]  opIndex    Номер операнда
 \return Тип операнда, имеющий индекс opIndex
 */
-OperandType Assembler::getOperandType(Command cmd, ui8 opIndex)
+OperandType Assembler::Instruction::get_operand_type(int opIndex)
 {
 
     switch (opIndex + 1)
     {
         case 1:
-            return (OperandType)cmd.bits.typeFirst;
+            return (OperandType)bits.typeFirst;
         case 2:
-            return (OperandType)cmd.bits.typeSecond;
+            return (OperandType)bits.typeSecond;
         case 3:
-            return (OperandType)cmd.bits.typeThird;
+            return (OperandType)bits.typeThird;
         default:
-            printf("Undefined operandType, cmd: 0x%X\n", cmd.bits.marchCode);
+            printf("Undefined operandType, cmd: 0x%X\n", bits.marchCode);
             return (OperandType)0;
     }
 }

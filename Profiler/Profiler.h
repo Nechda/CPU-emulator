@@ -13,7 +13,7 @@
 class Profiler
 {
     private:
-        std::map<ui32, Assembler::Command> m_commandOrderedMap;
+        std::map<ui32, Assembler::Instruction> m_commandOrderedMap;
         ui64 m_totalCommandExecuted = 0;
         const ui8 SPACE_SIZE_FOR_EXPLANATORY_LINE = 40;
     public:
@@ -32,7 +32,7 @@ class Profiler
         {
             std::cout << "Score:" << m_totalCommandExecuted << std::endl;
         }
-        void pushCommand(Assembler::Command cmd, ui32 eip = 0);
+        void pushCommand(Assembler::Instruction cmd, ui32 eip = 0);
         void makeReport(const std::string filename, Report report = Report::COMMAND_USAGE);
     private:
         void measureTemperature(const std::string& filename);
@@ -41,5 +41,5 @@ class Profiler
         void searchLongestRepeatedString(const std::string& filename);
         
         static std::string makeCommandProtoString(ui16 commandCode);
-        friend static void prntLRS(const std::string& decode, std::ostream& outStream);
+        friend void prntLRS(const std::string& decode, std::ostream& outStream);
 };

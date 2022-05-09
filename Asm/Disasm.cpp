@@ -21,7 +21,7 @@ using namespace Assembler;
 \return Строка, содержащее имя команды, взятое из таблицы с лексемами
 \note   В случае ошибки будет возвращаться NULL
 */
-static C_string getCommandName(Command cmd)
+static C_string getCommandName(Instruction cmd)
 {
     static std::string tmp;
     tmp = "";
@@ -77,7 +77,7 @@ AsmError Disassembler::getCode(ui8* bytes, ui32 nBytes, FILE* outStream = stdout
     endPtr = bytes + sectionTextSize;
 
     ui8* strPtr = bytes;
-    Command cmd;
+    Instruction cmd;
     C_string commandName = NULL;
     C_string operandStr[3] = { NULL, NULL, NULL };
     char strBuf[32] = {};
@@ -109,28 +109,28 @@ AsmError Disassembler::getCode(ui8* bytes, ui32 nBytes, FILE* outStream = stdout
         bool isInvalidOperands = 0;
         for (int i = 0; i < cmd.bits.nOperands; i++)
         {
-            OperandType opType = getOperandType(cmd, i);
+            OperandType opType = cmd.get_operand_type(i);
             if (opType == OPERAND_NUMBER || opType == OPERAND_MEMORY)
             {
-                cmd.operand[i].ivalue = *((ui32*)bytes);
+                cmd.operand[i] = *((ui32*)bytes);
                 bytes += sizeof(ui32);
-                operandStr[i] = getStrByNumber(cmd.operand[i].ivalue);
+                operandStr[i] = getStrByNumber(cmd.operand[i]);
 
             }
             if (opType == OPERAND_REGISTER || opType == OPERAND_MEM_BY_REG)
             {
-                cmd.operand[i].ivalue = *((ui8*)bytes);
+                cmd.operand[i] = *((ui8*)bytes);
                 bytes += sizeof(ui8);
                 if (cmd.bits.longCommand && opType == OPERAND_MEM_BY_REG)
                 {
                     cmd.extend[i] = *((ui32*)bytes);
-                    sprintf(strBuf, "%s+0x%X", getRegisterName(cmd.operand[i].ivalue), cmd.extend[i]);
+                    sprintf(strBuf, "%s+0x%X", getRegisterName(cmd.operand[i]), cmd.extend[i]);
                     operandStr[i] = strBuf;
                     bytes += sizeof(ui32);
                 }
                 else
                 {
-                    operandStr[i] = getRegisterName(cmd.operand[i].ivalue);
+                    operandStr[i] = getRegisterName(cmd.operand[i]);
                 }
             }
             isInvalidOperands |= !operandStr[i];
@@ -200,7 +200,7 @@ AsmError Disassembler::disasm(const ui8* code, int size, FILE* outStream)
 \param  [in]  cmd        Команда, которую надо дизасемблировать
 \param  [in]  outStream  Поток вывода, куда будем записывать результат
 */
-void Disassembler::disasmCommand(Command cmd, FILE* outStream = stdout)
+void Disassembler::disasmCommand(Instruction cmd, FILE* outStream = stdout)
 {
     C_string commandName = NULL;
     C_string operandStr[3] = { NULL, NULL, NULL };
@@ -226,19 +226,19 @@ void Disassembler::disasmCommand(Command cmd, FILE* outStream = stdout)
     bool isInvalidOperands = 0;
     for (int i = 0; i < cmd.bits.nOperands; i++)
     {
-        OperandType opType = getOperandType(cmd, i);
+        OperandType opType = cmd.get_operand_type(i);
         if (opType == OPERAND_NUMBER || opType == OPERAND_MEMORY)
-            operandStr[i] = getStrByNumber(cmd.operand[i].ivalue);
+            operandStr[i] = getStrByNumber(cmd.operand[i]);
         if (opType == OPERAND_REGISTER || opType == OPERAND_MEM_BY_REG)
         {
             if (cmd.bits.longCommand && opType == OPERAND_MEM_BY_REG)
             {
-                sprintf(strBuf, "%s+0x%X", getRegisterName(cmd.operand[i].ivalue), cmd.extend[i]);
+                sprintf(strBuf, "%s+0x%X", getRegisterName(cmd.operand[i]), cmd.extend[i]);
                 operandStr[i] = strBuf;
             }
             else
             {
-                operandStr[i] = getRegisterName(cmd.operand[i].ivalue);
+                operandStr[i] = getRegisterName(cmd.operand[i]);
             }
         }
         isInvalidOperands |= !operandStr[i];
@@ -269,7 +269,7 @@ void Disassembler::disasmCommand(Command cmd, FILE* outStream = stdout)
 \return Если все OK, то вернется ASM_OK в противном случае возвращается код ошибки
 \note   В последнем элементе вектора команд в поле extend[0] хранится размер секции .text
 */
-AsmError Disassembler::generateCommandList(vector<Command>& commands, vector<ui8>& bytesFromDataSection, i8* bytes, i32 nBytes)
+AsmError Disassembler::generateCommandList(vector<Instruction>& commands, vector<ui8>& bytesFromDataSection, i8* bytes, i32 nBytes)
 {
     Assert_c(bytes);
     if (!bytes)
@@ -283,7 +283,7 @@ AsmError Disassembler::generateCommandList(vector<Command>& commands, vector<ui8
     endPtr = bytes + sectionTextSize;
 
     i8* strPtr = bytes;
-    Command cmd;
+    Instruction cmd;
     C_string commandName = NULL;
     C_string operandStr[3] = { NULL, NULL, NULL };
     char strBuf[32] = {};
@@ -314,17 +314,17 @@ AsmError Disassembler::generateCommandList(vector<Command>& commands, vector<ui8
         bool isInvalidOperands = 0;
         for (int i = 0; i < cmd.bits.nOperands; i++)
         {
-            OperandType opType = getOperandType(cmd, i);
+            OperandType opType = cmd.get_operand_type(i);
             if (opType == OPERAND_NUMBER || opType == OPERAND_MEMORY)
             {
-                cmd.operand[i].ivalue = *((ui32*)bytes);
+                cmd.operand[i] = *((ui32*)bytes);
                 bytes += sizeof(ui32);
                 cmd.sizeCommand += sizeof(ui32);
             }
             else
                 if (opType == OPERAND_REGISTER || opType == OPERAND_MEM_BY_REG)
                 {
-                    cmd.operand[i].ivalue = *((ui8*)bytes);
+                    cmd.operand[i] = *((ui8*)bytes);
                     bytes += sizeof(ui8);
                     cmd.sizeCommand += sizeof(ui8);
                     if (cmd.bits.longCommand && opType == OPERAND_MEM_BY_REG)

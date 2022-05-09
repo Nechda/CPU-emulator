@@ -3,11 +3,7 @@
 #include "Tools/Argparser.h"
 #include "Profiler/Profiler.h"
 
-#include "Stack/Stack_kernel.h"
-#define TYPE_ ui8
-#include "Stack/Stack.h"
-#undef TYPE_
-
+#include "Stack/FlatStack.h"
 
 /*
 \brief Коды ошибок, возвращаемые процессором
@@ -22,7 +18,7 @@ enum CPUerror
     CPU_INVALID_INPUT_DATA
 };
 
-#define CPU_GRAPH_MODE
+//#define CPU_GRAPH_MODE
 #define CPU_PROFILER
 //#define DUMP_PRINT_MEMORY
 //#define CPU_SMART_PRINT_MEMORY
@@ -60,6 +56,7 @@ class CPU
     public:
         static struct Context
         {
+            Context() : stack(RAM, Register.esp) {}
             bool isValid = 0;
             int  interruptCode = 0;
             bool stepByStep = 0;
@@ -80,24 +77,10 @@ class CPU
                 ui128 lr4; ui128 lr5; ui128 lr6; ui128 lr7;
             }Register;
             ui32 pc;
-            struct
-            {
-                union
-                {
-                    struct
-                    {
-                        ui32 permissionLvl   : 2;
-                        ui32 reserved        : 10;
-                        ui32 pureMappingAddr : 20;
-                    };
-                    ui32 bits;
-                }CR;
-                ui32 GPT;
-            }ControlRegister;
             ui8* RAM = NULL;
-            Stack(ui8) stack;
+            FlatStack stack;
         }context;
-        typedef void(*PtrToFunction)(Assembler::Command*);
+        typedef void(*PtrToFunction)(Assembler::Instruction*);
         static PtrToFunction runFunction[];
         static const ui32 FUNCTION_TABLE_SIZE;
 };

@@ -4,7 +4,7 @@
 using namespace std;
 using namespace Assembler;
 
-void Profiler::pushCommand(Command cmd, ui32 eip)
+void Profiler::pushCommand(Instruction cmd, ui32 eip)
 {
     auto search = m_commandOrderedMap.find(eip);
     if (search != m_commandOrderedMap.end())
@@ -50,12 +50,12 @@ string Profiler::makeCommandProtoString(ui16 commandCode)
         #undef DEF
     };
 
-    Command cmd;
+    Instruction cmd;
     cmd.bits.marchCode = commandCode;
     string result = m_commandsName[cmd.bits.opCode] + " ";
     for (ui8 i = 0; i < cmd.bits.nOperands; i++)
     {
-        OperandType opType = getOperandType(cmd, i);
+        OperandType opType = cmd.get_operand_type(i);
         if (i != 0 )
             result += " , ";
         result += (cmd.bits.longCommand && opType == OPERAND_MEM_BY_REG)

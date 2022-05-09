@@ -1,7 +1,9 @@
 #include "Asm.h"
 #include "AsmTables.h"
 #include <ctype.h>
+#include <string.h>
 #include <math.h>
+
 
 
 using namespace Assembler;
@@ -408,7 +410,7 @@ static int getMemoryOperand(char* str, Label* lables, ui32 nLables,ui32* longMem
 \return Код ошибки. Если команда сгенерирована правильно, то
         возвращается ASM_OK
 */
-static AsmError checkValidityOfOperands(Command cmd)
+static AsmError checkValidityOfOperands(Instruction cmd)
 {
     char* validityStr[3] = { NULL, NULL };
     for (int i = 0; i < COMMAND_TABLE_SIZE; i++)
@@ -426,7 +428,7 @@ static AsmError checkValidityOfOperands(Command cmd)
     OperandType opType;
     for (int i = 0; i < cmd.bits.nOperands; i++)
     {
-        opType = getOperandType(cmd, i);
+        opType = cmd.get_operand_type(i);
         if (!strchr(validityStr[i], opTypeStr[(ui8)opType]))
             return ASM_ERROR_INVALID_OPERAND_TYPE_FOR_COMMAND;
     }
@@ -455,7 +457,7 @@ static AsmError genBytes(const char* codeLine, Label* lables, ui32 nLables, ui8*
     int currentPosition = 0;
     ui32 textSectionSize = 0;
     LexemaType lxt;
-    Command cmd;
+    Instruction cmd;
     enum {CODE_SECTION, DATA_SECTION} currentSection = CODE_SECTION;
     if (memcmp(".text", codeLine, 5))
     {
@@ -578,39 +580,39 @@ static AsmError genBytes(const char* codeLine, Label* lables, ui32 nLables, ui8*
             }
             if (lxt == LEX_NUMBER)
             {
-                cmd.operand[i].ivalue = *((ui32*)ptr);
-                setOperandType(cmd, i, OPERAND_NUMBER);
+                cmd.operand[i] = *((ui32*)ptr);
+                cmd.set_operand_type(i, OPERAND_NUMBER);
                 currentPosition += sizeof(ui32);
             }
             if (lxt == LEX_REGISTER)
             {
-                cmd.operand[i].ivalue = *((ui8*)ptr);
-                setOperandType(cmd, i, OPERAND_REGISTER);
+                cmd.operand[i] = *((ui8*)ptr);
+                cmd.set_operand_type(i, OPERAND_REGISTER);
                 currentPosition += sizeof(ui8);
             }
             if (lxt == LEX_MEMORY || lxt == LEX_MEM_BY_REG)
             {
-                cmd.operand[i].ivalue = getMemoryOperand(ptr, lables, nLables);
-                if (cmd.operand[i].ivalue == ASM_ERROR_CODE)
+                cmd.operand[i] = getMemoryOperand(ptr, lables, nLables);
+                if (cmd.operand[i] == ASM_ERROR_CODE)
                 {
                     logger.push("Compilator error", "Invalid link to memory: \"%s\" ", ptr);
                     return ASM_ERROR_INVALID_OPERAND_SYNTAX;
                 }
-                setOperandType(cmd, i, lxt == LEX_MEMORY ? OPERAND_MEMORY : OPERAND_MEM_BY_REG);
+                cmd.set_operand_type(i, lxt == LEX_MEMORY ? OPERAND_MEMORY : OPERAND_MEM_BY_REG);
                 currentPosition += lxt == LEX_MEMORY ? sizeof(ui32) : sizeof(ui8);
             }
             if (lxt == LEX_MEM_BY_REG_LONG)
             {
                 ui32 offsetOperand = 0;
-                cmd.operand[i].ivalue = getMemoryOperand(ptr, lables, nLables, &offsetOperand);
+                cmd.operand[i] = getMemoryOperand(ptr, lables, nLables, &offsetOperand);
                 cmd.extend[i] = offsetOperand;
                 cmd.bits.longCommand = 1;
-                if (cmd.operand[i].ivalue == ASM_ERROR_CODE)
+                if (cmd.operand[i] == ASM_ERROR_CODE)
                 {
                     logger.push("Compilator error", "Invalid link to memory: \"%s\" ", ptr);
                     return ASM_ERROR_INVALID_OPERAND_SYNTAX;
                 }
-                setOperandType(cmd, i, OPERAND_MEM_BY_REG);
+                cmd.set_operand_type(i, OPERAND_MEM_BY_REG);
                 currentPosition += sizeof(ui8);
                 currentPosition += sizeof(ui32);
             }
@@ -627,9 +629,9 @@ static AsmError genBytes(const char* codeLine, Label* lables, ui32 nLables, ui8*
                     logger.push("Compilator error", "Invalid lexema: \"%s\" ", ptr);
                     return ASM_ERROR_INVALID_SYNTAX;
                 }
-                setOperandType(cmd, i, OPERAND_NUMBER);
+                cmd.set_operand_type(i, OPERAND_NUMBER);
                 currentPosition += sizeof(ui32);
-                cmd.operand[i].ivalue = lables[labelIndex].pos;
+                cmd.operand[i] = lables[labelIndex].pos;
             }
 
         }
@@ -654,15 +656,15 @@ static AsmError genBytes(const char* codeLine, Label* lables, ui32 nLables, ui8*
 
         for (int i = 0; i < cmd.bits.nOperands; i++)
         {
-            OperandType opType = getOperandType(cmd, i);
+            OperandType opType = cmd.get_operand_type(i);
             if (opType == OPERAND_NUMBER || opType == OPERAND_MEMORY)
             {
-                *((ui32*)bytes) = cmd.operand[i].ivalue;
+                *((ui32*)bytes) = cmd.operand[i];
                 bytes += sizeof(ui32);
             }
             if (opType == OPERAND_REGISTER || opType == OPERAND_MEM_BY_REG)
             {
-                *((ui8*)bytes) = cmd.operand[i].ivalue;
+                *((ui8*)bytes) = cmd.operand[i];
                 bytes += sizeof(ui8);
                 if (cmd.bits.longCommand && opType == OPERAND_MEM_BY_REG)
                 {

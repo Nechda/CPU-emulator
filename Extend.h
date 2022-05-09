@@ -65,12 +65,7 @@ DEF(
     MOV,
     make_code(0,1,2), "RMB", "RNMB", "",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* src = NULL;
-        getOperandsPointer(cmd, &dst, &src);
-        isInterruptOccur();
-
-        *dst = *src;
+        idst = iop1;
     }
 )
 
@@ -78,13 +73,7 @@ DEF(
     ADD,
     make_code(0, 2, 3), "RMB", "RNMB", "RNMB",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* op1 = NULL;
-        OperandUnion* op2 = NULL;
-        getOperandsPointer(cmd, &dst, &op1, &op2);
-        isInterruptOccur();
-
-        dst->ivalue = op1->ivalue + op2->ivalue;
+        idst = iop1 + iop2;
     }
 )
 
@@ -92,14 +81,7 @@ DEF(
     SUB,
     make_code(0, 3, 3), "RMB", "RNMB", "RNMB",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* op1 = NULL;
-        OperandUnion* op2 = NULL;
-        getOperandsPointer(cmd, &dst, &op1, &op2);
-        isInterruptOccur();
-
-
-        dst->ivalue = op1->ivalue - op2->ivalue;
+        idst = iop1 - iop2;
     }
 )
 
@@ -107,16 +89,7 @@ DEF(
     DIV,
     make_code(0, 4, 3), "RMB", "RNMB", "RNMB",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* op1 = NULL;
-        OperandUnion* op2 = NULL;
-        getOperandsPointer(cmd, &dst, &op1, &op2);
-        isInterruptOccur();
-
-        if (op2->ivalue == 0)
-            context.interruptCode = 1;
-        else
-            dst->ivalue = op1->ivalue / op2->ivalue;
+        idst = iop1 / iop2;
     }
 )
 
@@ -124,13 +97,7 @@ DEF(
     MUL,
     make_code(0, 5, 3), "RMB", "RNMB", "RNMB",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* op1 = NULL;
-        OperandUnion* op2 = NULL;
-        getOperandsPointer(cmd, &dst, &op1, &op2);
-        isInterruptOccur();
-
-        dst->ivalue = op1->ivalue * op2->ivalue;
+        idst = iop1 * iop2;
     }
 )
 
@@ -138,19 +105,9 @@ DEF(
     POP,
     make_code(0,6,1), "RMB", "", "",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* src = NULL;
-        getOperandsPointer(cmd, &dst, &src);
-        isInterruptOccur();
-
-        ui8* data = (ui8*)dst;
+        ui8* data = cmd->ops[0].AsByte();
         for (ui8 i = 0; i < sizeof(ui32); i++)
-            stackPop(&context.stack, &data[sizeof(ui32) - 1 - i]);
-
-        //в данной реализации процессора в качестве стека используется immortal stack,
-        //соттветственно при push он растет в сторону больших адресов,
-        //а при pop адрес вершины уменьшается
-        context.Register.esp -= sizeof(ui32);
+            data[sizeof(ui32) - 1 - i] = context.stack.pop();
     }
 )
 
@@ -158,18 +115,9 @@ DEF(
     PUSH,
     make_code(0,7,1), "RNMB", "", "",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* src = NULL;
-        getOperandsPointer(cmd, &dst, &src);
-        isInterruptOccur();
-        ui8* data = (ui8*)dst;
+        ui8* data = cmd->ops[0].AsByte();
         for (ui8 i = 0; i < sizeof(ui32); i++)
-            stackPush(&context.stack, &data[i]);
-
-        //в данной реализации процессора в качестве стека используется immortal stack,
-        //соттветственно при push он растет в сторону больших адресов,
-        //а при pop адрес вершины уменьшается
-        context.Register.esp += sizeof(ui32);
+            context.stack.push(data[i]);
     }
 )
 
@@ -177,7 +125,7 @@ DEF(
     JMP,
     make_code(0,8,1), "N", "", "",
     {
-        context.pc = cmd->operand[0].ivalue;
+        context.pc = cmd->operand[0];
     }
 )
 
@@ -185,13 +133,7 @@ DEF(
     JE,
     make_code(0, 9, 3), "RNMB", "RNMB", "N",
     {
-        OperandUnion* op1 = NULL;
-        OperandUnion* op2 = NULL;
-        OperandUnion* addr = NULL;
-        getOperandsPointer(cmd, &op1, &op2, &addr);
-        isInterruptOccur();
-        if (op1->ivalue == op2->ivalue)
-        context.pc = addr->ivalue;
+        if (idst == iop1) context.pc = iop2;
     }
 )
 
@@ -199,13 +141,7 @@ DEF(
     JNE,
     make_code(0, 10, 3), "RNMB", "RNMB", "N",
     {
-        OperandUnion* op1 = NULL;
-        OperandUnion* op2 = NULL;
-        OperandUnion* addr = NULL;
-        getOperandsPointer(cmd, &op1, &op2, &addr);
-        isInterruptOccur();
-        if (op1->ivalue != op2->ivalue)
-            context.pc = addr->ivalue;
+        if (idst != iop1) context.pc = iop2;
     }
 )
 
@@ -213,13 +149,7 @@ DEF(
     JA,
     make_code(0, 11, 3), "RNMB", "RNMB", "N",
     {
-        OperandUnion* op1 = NULL;
-        OperandUnion* op2 = NULL;
-        OperandUnion* addr = NULL;
-        getOperandsPointer(cmd, &op1, &op2, &addr);
-        isInterruptOccur();
-        if (op1->ivalue > op2->ivalue)
-        context.pc = addr->ivalue;
+        if (idst > iop1) context.pc = iop2;
     }
 )
 
@@ -227,13 +157,7 @@ DEF(
     JAE,
     make_code(0, 12, 3), "RNMB", "RNMB", "N",
     {
-        OperandUnion* op1 = NULL;
-        OperandUnion* op2 = NULL;
-        OperandUnion* addr = NULL;
-        getOperandsPointer(cmd, &op1, &op2, &addr);
-        isInterruptOccur();
-        if (op1->ivalue >= op2->ivalue)
-        context.pc = addr->ivalue;
+        if (idst >= iop1) context.pc = iop2;
     }
 )
 
@@ -242,16 +166,10 @@ DEF(
     CALL,
     make_code(0,13,1), "N", "", "",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* src = NULL;
-        getOperandsPointer(cmd, &dst, &src);
-        isInterruptOccur();
-
         ui8* data = (ui8*)&context.pc;
         for (ui8 i = 0; i < sizeof(ui32); i++)
-            stackPush(&context.stack, &data[i]);
-        context.Register.esp += sizeof(ui32);
-        context.pc = cmd->operand[0].ivalue;
+            context.stack.push(data[i]);
+        context.pc = idst;
     }
 )
 
@@ -263,8 +181,7 @@ DEF(
 
         ui8* data = (ui8*)&ptrReturn;
         for (ui8 i = 0; i < sizeof(ui32); i++)
-            stackPop(&context.stack, &data[sizeof(ui32) - 1 - i]);
-        context.Register.esp -= sizeof(ui32);
+            data[sizeof(ui32) - 1 - i] = context.stack.pop();
         context.pc = ptrReturn;
     }
 )
@@ -274,12 +191,7 @@ DEF(
     OR,
     make_code(0,15,3), "RMB", "RNMB", "RNMB",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* op1 = NULL;
-        OperandUnion* op2 = NULL;
-        getOperandsPointer(cmd, &dst, &op1, &op2);
-        isInterruptOccur();
-        dst->ivalue = op1->ivalue | op2->ivalue;
+        idst = iop1 | iop2;
     }
 )
 
@@ -287,12 +199,7 @@ DEF(
     AND,
     make_code(0,16,3), "RMB", "RNMB", "RNMB",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* op1 = NULL;
-        OperandUnion* op2 = NULL;
-        getOperandsPointer(cmd, &dst, &op1, &op2);
-        isInterruptOccur();
-        dst->ivalue = op1->ivalue & op2->ivalue;
+        idst = iop1 & iop2;
     }
 )
 
@@ -300,12 +207,7 @@ DEF(
     XOR,
     make_code(0,17,3), "RMB", "RNMB", "RNMB",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* op1 = NULL;
-        OperandUnion* op2 = NULL;
-        getOperandsPointer(cmd, &dst, &op1, &op2);
-        isInterruptOccur();
-        dst->ivalue = op1->ivalue & op2->ivalue;
+        idst = iop1 ^ iop2;
     }
 )
 
@@ -314,13 +216,7 @@ DEF(
     MOVB,
     make_code(0,18,2), "RMB", "RNMB", "",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* src = NULL;
-        getOperandsPointer(cmd, &dst, &src);
-        isInterruptOccur();
-
-        ui8 srcB = src->ivalue;
-        memcpy(dst, &srcB, sizeof(ui8));
+        memcpy(&idst, &iop1, sizeof(ui8));
     }
 )
 
@@ -328,12 +224,7 @@ DEF(
     MOVW,
     make_code(0,19,2), "RMB", "RNMB", "",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* src = NULL;
-        getOperandsPointer(cmd, &dst, &src);
-        isInterruptOccur();
-        ui16 srcW = src->ivalue;
-        memcpy(dst, &srcW, sizeof(ui16));
+        memcpy(&idst, &iop1, sizeof(ui16));
     }
 )
 
@@ -342,12 +233,7 @@ DEF(
     OUT,
     make_code(0,20,1), "RNMB", "", "",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* src = NULL;
-        getOperandsPointer(cmd, &dst, &src);
-        isInterruptOccur();
-
-        printf("0x%04X \t(float: %f)\n", dst->ivalue & 0xFFFF, dst->fvalue);
+        printf("0x%04X \t(float: %f)\n", idst & 0xFFFF, fdst);
     }
 )
 
@@ -356,12 +242,8 @@ DEF(
     IN,
     make_code(0,21,1), "RMB", "", "",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* src = NULL;
-        getOperandsPointer(cmd, &dst, &src);
-        isInterruptOccur();
         printf("enter int:");
-        scanf("%d", &dst->ivalue);
+        scanf("%d", &idst);
     }
 )
 
@@ -369,12 +251,8 @@ DEF(
     FIN,
     make_code(0,22,1), "RMB", "", "",
     {
-        OperandUnion* dst = NULL;
-        OperandUnion* src = NULL;
-        getOperandsPointer(cmd, &dst, &src);
-        isInterruptOccur();
         printf("enter float:");
-        scanf("%f", &dst->fvalue);
+        scanf("%f", &fdst);
     }
 )
 
@@ -383,13 +261,16 @@ DEF(
     DUMP,
     make_code(0,23,0), "", "", "",
     {
-        glFlush();
+        //glFlush();
         //glClear(GL_COLOR_BUFFER_BIT);
         //CPU::Instance().dump(stdout);
         //system("pause");
     }
 )
 
+
+
+#if 0
 
 // ==========================================================
 
@@ -982,3 +863,5 @@ DEF(
             dst->fvalue += src->fvalue;
     }
 )
+
+#endif

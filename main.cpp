@@ -11,7 +11,9 @@
 #include "Tools/CallStack.h"
 #include "Asm/Asm.h"
 #include "CPU/CPU.h"
+#ifdef CPU_GRAPH_MODE
 #include <GL\freeglut.h>
+#endif
 #include <iostream>
 #include <fstream>
 
@@ -247,7 +249,7 @@ int main(int argc, char** argv)
             break;
     }
 
-    glFlush();
+    //glFlush();
 
     free(buffer);
     if(outStream)

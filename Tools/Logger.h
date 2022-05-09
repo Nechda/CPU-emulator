@@ -37,3 +37,9 @@ class Logger
 extern Logger& logger;
 
 #define Assert_c(expr) if(!(expr)) Logger::Instance().assertion(#expr,__FILE__,__FUNCSIG__,__LINE__);
+#define ASSERT_DO(expr, label, msg) \
+    do{\
+        if(!(expr)) {\
+        logger.push(label, msg); \
+        std::terminate();}\
+    } while(0)

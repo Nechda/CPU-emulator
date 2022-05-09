@@ -25,7 +25,7 @@ void Profiler::makeSequenceUsageReport(const std::string& filename)
 
     cout << setw(SPACE_SIZE_FOR_EXPLANATORY_LINE) << "Measuring sequence usage ... ";
 
-    vector<Command> commandVector;
+    vector<Instruction> commandVector;
     commandVector.reserve(m_commandOrderedMap.size());
     for (const auto& it : m_commandOrderedMap)
         commandVector.push_back(it.second);
