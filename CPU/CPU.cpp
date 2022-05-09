@@ -1,6 +1,6 @@
 #include <cstring>
 #include "Tools/Support.h"
-
+#include "Stack/FlatStack.h"
 
 #include "Asm/Asm.h"
 #include "CPU/CPU.h"
@@ -9,9 +9,36 @@
 using namespace Assembler;
 using std::memcpy;
 
+typedef void(*PtrToFunction)(Assembler::Instruction*);
 
-CPU::Context CPU::context = {};
-CPU::Context& context = CPU::context;
+struct Context
+{
+    using ui128 = struct { ui32 b[4]; };
+    Context() : stack(RAM, Register.esp) {}
+    bool isValid = 0;
+    bool stepByStep = 0;
+    ui32 ramSize = 8;
+    struct
+    {
+        ui32 eax; ui32 ebx; ui32 ecx; ui32 edx;
+        ui32 esi; ui32 edi; ui32 esp; ui32 ebp;
+        ui32 _;
+        ui128 lr0; ui128 lr1; ui128 lr2; ui128 lr3;
+        ui128 lr4; ui128 lr5; ui128 lr6; ui128 lr7;
+    }Register;
+    ui32 pc;
+    ui8* RAM = NULL;
+    FlatStack stack;
+    static constexpr auto TOTAL_REGS = sizeof(Register) / sizeof(ui32);
+
+    ui32* get_reg_ptr(ui32 idx) {
+        if (idx > TOTAL_REGS) return nullptr;
+        if (10 <= idx && idx <= 17)
+            return (ui32*)&Register.lr0 + 4 * (idx - 10);
+        else
+            return (ui32*)&Register + (idx - 1);
+    }
+}context;
 
 #ifdef CPU_SMART_PRINT_MEMORY
     #include <Windows.h>
@@ -37,68 +64,6 @@ CPU::Context& context = CPU::context;
 
 #endif
 
-#ifdef CPU_PROFILER
-    #define COLLECT_PROFILER_INFORMATION(code) code
-#else
-    #define COLLECT_PROFILER_INFORMATION(code)
-#endif
-
-
-/*
-\brief Константы, определяющие работу процессора
-@{
-*/
-const Mcode ASM_HLT = 0 << 6 | 0 << 4 | 0 << 2 | 0x0; ///< Именно эта команда будет завершать работу процессора
-
-
-/*
-\brief  Функция возвращает указатель на поле структуры CPU.Register,
-в качестве аргумента принимается нормер регистра (см таблицу с регистрами).
-\param  [in]  number  Номер регистра, адрес которого кужно получить
-\return Указатель на поле структуры CPU.Register, в случае ошибки возвращается NULL
-*/
-ui32* getRegisterPtr(ui8 number)
-{
-    if (number > sizeof(context.Register) / sizeof(ui32))
-        return nullptr;
-    if (10 <= number && number <= 17)
-        return (ui32*)&context.Register.lr0 + 4 * (number - 10);
-    else
-        return (ui32*)&context.Register + (number - 1);
-}
-
-/*
-\brief  Функция возвращает поясняющую строку, по коду ошибки процессора
-\param  [in]  errorCode  Код ошибки
-\return Возвращается строка, поясняющее код ошибки
-*/
-C_string getStringByErrorCode(CPUerror errorCode)
-{
-    switch (errorCode)
-    {
-    case CPU_OK:
-        return "Ok";
-        break;
-    case CPU_ERROR_INVALID_STRUCUTE:
-        return "CPU structure has been broken";
-        break;
-    case CPU_ERROR_INVALID_COMMAND:
-        return "CPU find command that he doesn't know";
-        break;
-    case CPU_ERROR_EXCEPTION:
-        return "An exceptional situation has occurred";
-        break;
-    case CPU_ERROR_EPI_OUT_OF_RANE:
-        return "EPI register is too large for CPU's RAM";
-        break;
-    case CPU_INVALID_INPUT_DATA:
-        return "The data passed is not valid";
-    default:
-        return "Undefined error code";
-        break;
-    }
-}
-
 /*
 \brief  Функция производит инициализацию структуры CPU
 \param  [in]  ramSize  Размер виртуальной памяти процессора
@@ -107,7 +72,6 @@ C_string getStringByErrorCode(CPUerror errorCode)
 */
 void CPU::init(const InputParams inParam)
 {
-    context.isGraphMode = inParam.useGraphMode;
     context.ramSize = inParam.memorySize;
     ASSERT_DO(context.ramSize > (32 << 20), "CPU error", "I'm not sure that you really want too much memory.");
 
@@ -118,10 +82,23 @@ void CPU::init(const InputParams inParam)
     context.stepByStep = inParam.useStepByStepMode;
 }
 
+CPUerror CPU::run(ui8* bytes, ui32 size, ui32 insert_point)
+{
+    ASSERT_DO(context.isValid, "CPU error", "You try to evaluate program on broken CPU.");
+    ASSERT_DO(bytes, "CPU error", "You try execute program, located by NULL pointer.");
+    ASSERT_DO(size <= 0, "CPU error", "You try execute program, that have incorrect size (= 0).");
+    ASSERT_DO(insert_point + size + 1 >= context.ramSize, "CPU error", "Your program doesn't fit in RAM. Try to change ptrStart or write small program.");
 
-/*
-\brief  Функция делает cleanUp структуры CPU
-*/
+    // Copy binary file into CPU's RAM
+    memcpy(&context.RAM[insert_point], bytes, size);
+    // Setting up program counter
+    context.pc = insert_point;
+    // And the top of the stack
+    context.Register.esp = size + 1;
+
+    return evaluate();
+}
+
 CPU::~CPU()
 {
     free(context.RAM);
@@ -134,27 +111,36 @@ CPU::~CPU()
 */
 void CPU::dump(Stream outStream)
 {
-    #if 0
     if (outStream ? ferror(outStream) : 1)
         outStream = stdout;
 
     fprintf(outStream, "CPU{\n");
     fprintf(outStream, "    Registers{\n");
 
-    #define printRegInfo(regName)\
-        fprintf(outStream, "        " #regName ":0x%08X  (int: %011d) \t(float: %f)\n", context.Register.##regName,context.Register.##regName,*((float*)&context.Register.##regName))
+    auto dump_reg = [&](const char* name, void* ptr) {
+        Pointer reg(ptr);
+        ui32 usi = reg.DrefAs<ui32>();
+        i32 si = reg.DrefAs<i32>();
+        float fl = reg.DrefAs<float>();
+        fprintf(outStream, "%8s%s:0x%08X  (int: %011d) \t(float: %f)\n", "", name, usi, si, fl);
+    };
+    #define printRegInfo(regName) dump_reg(#regName, &context.Register. regName);
     printRegInfo(eax);printRegInfo(ebx);printRegInfo(ecx);printRegInfo(edx);
     printRegInfo(esi);printRegInfo(edi);printRegInfo(ebp);printRegInfo(esp);
     #undef printRegInfo
 
-    #define printLongRegInfo(regName)\
-        fprintf(outStream, "%8s"#regName":","");\
-        for(ui8 i = 0; i < 4; i++)\
-            fprintf(outStream, "%08X\'", context.Register.##regName.b[i]);\
+    auto dump_log_reg = [&](const char* name, void *ptr) {
+        Pointer reg(ptr);
+        fprintf(outStream, "%8s%s:", "", name);
+        for(int i = 0; i < 4; i++) {
+            fprintf(outStream, "%08X\'", reg.DrefAs<ui32>());
+            reg += sizeof(ui32);
+        }
         fprintf(outStream, "\n");
+    };
+    #define printLongRegInfo(regName) dump_log_reg(#regName, &context.Register. regName);
     printLongRegInfo(lr0);printLongRegInfo(lr1);printLongRegInfo(lr2);printLongRegInfo(lr3);
     printLongRegInfo(lr4);printLongRegInfo(lr5);printLongRegInfo(lr6);printLongRegInfo(lr7);
-
     #undef printLongRegInfo
 
     fprintf(outStream, "    }\n");
@@ -180,7 +166,6 @@ void CPU::dump(Stream outStream)
     }
     #endif
     fprintf(outStream, "}\n");
-    #endif
 }
 
 static void command_prepare(Instruction& cmd) {
@@ -188,7 +173,7 @@ static void command_prepare(Instruction& cmd) {
         switch (cmd.get_operand_type(i))
         {
         case OPERAND_REGISTER:
-            cmd.ops[i] = getRegisterPtr(cmd.operand[i]);
+            cmd.ops[i] = context.get_reg_ptr(cmd.operand[i]);
             break;
         case OPERAND_NUMBER:
             cmd.ops[i] = &cmd.operand[i];
@@ -198,7 +183,7 @@ static void command_prepare(Instruction& cmd) {
             break;
         }
         case OPERAND_MEM_BY_REG: {
-            auto reg_location = getRegisterPtr(cmd.operand[i]);
+            auto reg_location = context.get_reg_ptr(cmd.operand[i]);
             auto offset = static_cast<ui32>(*reg_location);
             if (cmd.bits.longCommand)
                 offset += cmd.extend[i];
@@ -231,33 +216,33 @@ void run_##name(Instruction* cmd) {\
 /*
 \breif Массив функций, реализующих поведение процессора
 */
-CPU::PtrToFunction CPU::runFunction[] =
+const PtrToFunction runFunction[] =
 {
     #define DEF(name, mCode, vStr1, vStr2, vStr3, code) run_##name,
     #include "Extend.h"
     #undef DEF
 };
-const ui32 CPU::FUNCTION_TABLE_SIZE = sizeof(CPU::runFunction) / sizeof(CPU::PtrToFunction);
-
-
+const ui32 FUNCTION_TABLE_SIZE = sizeof(runFunction) / sizeof(PtrToFunction);
 
 /*
 \brief  Функция, запускает выполнение программы, начиная с текущего значение CPU.pc
-\param  [in]  writeResultInLog  Флаг, отвечающий за то, хотим ли мы увидеть результат работы программы в логе
 \return Возвращается код ошибки или CPU_OK
 */
 CPUerror CPU::evaluate()
 {
     using Holder = PairHolder<Pointer, ui32>;
+    constexpr Mcode ASM_HLT = 0 << 6 | 0 << 4 | 0 << 2 | 0x0;
+
     Pointer ptr(&context.RAM[context.pc]);
     Instruction cmd;
-    
     while (ptr.DrefAs<Mcode>() != ASM_HLT)
     {
+        // Extract new command from RAM
         ptr = &context.RAM[context.pc];
         cmd.bits.marchCode = ptr.DrefAs<Mcode>();
         Holder(ptr, context.pc) += sizeof(Mcode);
 
+        // Fill command's args
         for (int index = 0; index < cmd.bits.nOperands; index++)
         {
             OperandType opType = cmd.get_operand_type(index);
@@ -291,41 +276,33 @@ CPUerror CPU::evaluate()
         ui32 indexCalledFunc = cmd.bits.opCode;
         ASSERT_DO(indexCalledFunc >= FUNCTION_TABLE_SIZE, "CPU error", "Invalid machine code of command.");
 
-        COLLECT_PROFILER_INFORMATION(profiler.pushCommand(cmd, context.pc));
+        // Do actual command execution
         command_prepare(cmd);
         runFunction[indexCalledFunc](&cmd);
         ptr = &context.RAM[context.pc];
 
-        //Disassembler::disasmCommand(cmd, logger.getStream());
-
-        ASSERT_DO(context.interruptCode, "CPU error", "Catch exception after execution command.");
         ASSERT_DO(context.pc >= context.ramSize, "CPU error", "Register epi quite big for RAM.");
     }
     return CPU_OK;
 }
 
-
-CPUerror CPU::run(ui8* bytes, ui32 size, ui32 ptrStart)
+/*
+\brief  Функция возвращает поясняющую строку, по коду ошибки процессора
+\param  [in]  errorCode  Код ошибки
+\return Возвращается строка, поясняющее код ошибки
+*/
+C_string getStringByErrorCode(CPUerror errorCode)
 {
-    ASSERT_DO(context.isValid, "CPU error", "You try to evaluate program on broken CPU.");
-    ASSERT_DO(bytes, "CPU error", "You try execute program, located by NULL pointer.");
-    ASSERT_DO(size <= 0, "CPU error", "You try execute program, that have incorrect size (= 0).");
-    ASSERT_DO(ptrStart + size + 1 >= context.ramSize, "CPU error", "Your program doesn't fit in RAM. Try to change ptrStart or write small program.");
-
-    memcpy(&context.RAM[ptrStart], bytes, size);
-    ///на всякий случай поставим код остановки, после всей программы
-    Pointer(&context.RAM[ptrStart + size]).DrefAs<Mcode>() = ASM_HLT;
-    context.pc = ptrStart;
-    context.Register.esp = size + 1; /// стек будет лежать за кодом
-
-    CPUerror errorCode = evaluate();
-
-    COLLECT_PROFILER_INFORMATION(
-        profiler.getScore();
-        profiler.makeReport("profiler reports/command_usage_frequency.txt", Profiler::Report::COMMAND_USAGE);
-        profiler.makeReport("profiler reports/sequence_usage.txt", Profiler::Report::COMMAND_SEQUENCE_USAGE);
-        profiler.makeReport("profiler reports/temperature.txt", Profiler::Report::REGION_TEMPERATURE);
-        profiler.makeReport("profiler reports/longest_repeated_string.txt", Profiler::Report::LONGEST_REPEATED_STRING);
-    )
-    return errorCode;
+    constexpr char* table[] = {
+        "Ok",
+        "CPU structure has been broken",
+        "CPU find command that he doesn't know",
+        "An exceptional situation has occurred",
+        "PC register is too large for CPU's RAM",
+        "The data passed is not valid",
+        "Undefined error code"
+    };
+    if(errorCode > CPU_STATUS_COUNT)
+        errorCode = CPU_STATUS_COUNT;
+    return table[errorCode];
 }
