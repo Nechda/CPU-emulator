@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <cassert>
 #include "Types.h"
 
 #ifdef __GNUG__

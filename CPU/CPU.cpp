@@ -1,4 +1,5 @@
 #include <cstring>
+#include <cassert>
 #include "Tools/Support.h"
 #include "Stack/FlatStack.h"
 
@@ -73,21 +74,21 @@ struct Context
 void CPU::init(const InputParams inParam)
 {
     context.ramSize = inParam.memorySize;
-    ASSERT_DO(context.ramSize > (32 << 20), "CPU error", "I'm not sure that you really want too much memory.");
+    assert(context.ramSize < (32 << 20));
 
     context.RAM = (ui8*)calloc(context.ramSize, sizeof(ui8));
-    ASSERT_DO(!context.RAM, "CPU error", "We can't alloc memory for virtual RAM.");
+    assert(context.RAM != nullptr);
 
     context.isValid = 1;
     context.stepByStep = inParam.useStepByStepMode;
 }
 
-CPUerror CPU::run(ui8* bytes, ui32 size, ui32 insert_point)
+CPUerror CPU::run(const char* bytes, ui32 size, ui32 insert_point)
 {
-    ASSERT_DO(context.isValid, "CPU error", "You try to evaluate program on broken CPU.");
-    ASSERT_DO(bytes, "CPU error", "You try execute program, located by NULL pointer.");
-    ASSERT_DO(size <= 0, "CPU error", "You try execute program, that have incorrect size (= 0).");
-    ASSERT_DO(insert_point + size + 1 >= context.ramSize, "CPU error", "Your program doesn't fit in RAM. Try to change ptrStart or write small program.");
+    assert(context.isValid);
+    assert(bytes);
+    assert(size > 0);
+    assert(insert_point + size + 1 < context.ramSize);
 
     // Copy binary file into CPU's RAM
     memcpy(&context.RAM[insert_point], bytes, size);

@@ -39,8 +39,8 @@ enum ConfigParamType
 struct InputParams
 {
     ProgramType programName = PROG_UNDEFINED;
-    char* inputFilename = NULL;
-    char* outputFilename = NULL;
+    char* inputFilename = "";
+    char* outputFilename = "a.out";
     char* logFilename = "log.log";
     ui32 memorySize = 0;
     ui32 entryPoint = 0;

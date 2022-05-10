@@ -8,11 +8,9 @@
 */
 void parseConfig(const char* configFileName, InputParams* ptrInParams)
 {
-    $
     Assert_c(configFileName);
     if (!configFileName)
     {
-        $$$("Null ptr in input data");
         return;
     }
     int errorCode = 0;
@@ -23,7 +21,6 @@ void parseConfig(const char* configFileName, InputParams* ptrInParams)
         logger.push("Config parser error", "We have problems with reading config file.\n");
         if (buff)
             free(buff);
-        $$$("Can't read config file");
         return;
     }
 
@@ -33,7 +30,6 @@ void parseConfig(const char* configFileName, InputParams* ptrInParams)
         logger.push("Config parser error", "We have problems with formating config file.\n");
         if (buff)
             free(buff);
-        $$$("Problems with del extra characters from buffer");
         return;
     }
 
@@ -86,14 +82,12 @@ void parseConfig(const char* configFileName, InputParams* ptrInParams)
                 logger.push("Config parser error", "Invalid syntax of config file! We can't find param \"%s\" in our table.\n", tok);
                 if (buff)
                     free(buff);
-                $$$("Invalid syntax in config file");
                 return;
         }
         tok = strtok(NULL, "=\n");
     }
 
     free(buff);
-    $$
 }
 
 
@@ -102,7 +96,6 @@ void parseConfig(const char* configFileName, InputParams* ptrInParams)
 */
 void parseConsoleArguments(int argc, char** argv, InputParams* ptrInParams)
 {
-    $
     char** curStr = NULL;
     char* buf = NULL;
     char option = 0;
@@ -174,5 +167,4 @@ void parseConsoleArguments(int argc, char** argv, InputParams* ptrInParams)
             break;
         }
     }
-    $$
 }

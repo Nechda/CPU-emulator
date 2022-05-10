@@ -19,7 +19,7 @@ enum CPUerror
 };
 
 //#define CPU_GRAPH_MODE
-#define CPU_PROFILER
+//#define CPU_PROFILER
 //#define DUMP_PRINT_MEMORY
 //#define CPU_SMART_PRINT_MEMORY
 
@@ -32,7 +32,7 @@ class CPU
             return theInstance;
         }
         void init(InputParams inParam);
-        CPUerror run(ui8* bytes, ui32 size, ui32 insert_point);
+        CPUerror run(const char* bytes, ui32 size, ui32 insert_point);
         void dump(Stream outStream);
         ~CPU();
     private:

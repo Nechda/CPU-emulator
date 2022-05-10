@@ -1,36 +1,15 @@
-#include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <string.h>
-#include <ctype.h>
-#include "Tools/Argparser.h"
-#include "Tools/LibStr.h"
-#include "Tools/Logger.h"
-#include "Tools/CallStack.h"
-#include "Asm/Asm.h"
-#include "CPU/CPU.h"
-#ifdef CPU_GRAPH_MODE
-#include <GL\freeglut.h>
-#endif
-#include <iostream>
+#include <string>
 #include <fstream>
+#include <streambuf>
 
-
-/**
-\brief Константы, описывающие коды ошибок, возникающие в main
-*/
-const ui8 ERROR_INIT_INPUT_STREAM           = 1 << 0;
-const ui8 ERROR_INIT_OUTPUT_STREAM          = 1 << 1;
-const ui8 ERROR_JUMP_DEFAULT_CASE_IN_SWITCH = 1 << 2;
+#include "Tools/Argparser.h"
+#include "CPU/CPU.h"
 
 /**
 \brief Функция запускает вывод справки по программе
 */
 void run_Helper()
 {
-    $
         printf(
             "There are some flags you can run program with, here is their description:\n"
             "-h                  Shows help to the program and describes all flags that you can use.\n"
@@ -53,209 +32,31 @@ void run_Helper()
             "--config=<filename> Specifies the configuration file, in there you can describe window and font sizes in graphic mode,\n"
             "init entry point adress for your programm also set RAM size\n"
         );
-    $$
 }
-
-/**
-\brief Функция запускает компилятор
-*/
-int run_Compilator(char* buffer, FILE* outStream, const InputParams inputParams)
-{$
-    int errorCode = 0;
-    errorCode = Assembler::Compilator::compile(buffer, outStream);
-    printf("Compilation finished with the code: %d (%s)\n", errorCode,
-        getStringByErrorCode(static_cast<Assembler::AsmError>(errorCode)));
-    if (!inputParams.noLogFileFlag && errorCode)
-        printf("More infromation see in log file: %s\n", inputParams.logFilename);
-    $$ return errorCode;
-}
-
-/**
-\brief Функция запускает дизасемблер
-*/
-int run_Disassembler(char* buffer,unsigned nBytes, FILE* outStream, const InputParams inputParams)
-{$
-    int errorCode = 0;
-    errorCode = Assembler::Disassembler::disasm((ui8*)buffer, nBytes, outStream);
-    printf("Disassembler finished with the code: %d (%s)\n", errorCode,
-        getStringByErrorCode(static_cast<Assembler::AsmError>(errorCode)));
-    if (!inputParams.noLogFileFlag && errorCode)
-        printf("More infromation see in log file: %s\n", inputParams.logFilename);
-    $$ return errorCode;
-}
-
-/**
-\brief Функция запускает эмулятор процессора
-*/
-int run_CPU(char* buffer, unsigned nBytes, const InputParams inputParams)
-{$
-    CPU::Instance().init(inputParams);
-
-    int errorCode = 0;
-    errorCode = CPU::Instance().run((ui8*)buffer, nBytes, inputParams.entryPoint);
-    printf("CPU finished with the code: %d (%s)\n", errorCode, getStringByErrorCode(static_cast<CPUerror>(errorCode)));
-    if (!inputParams.noLogFileFlag && errorCode)
-        printf("More infromation see in log file: %s\n", inputParams.logFilename);
-    CPU::Instance().dump(stdout);
-    $$ return errorCode;
-}
-
-/**
-\brief Функция инициализирует поток ввода, основываясь на данных из InputParams
-*/
-int initInStream(char* inputFileName,char** buffer, unsigned* readBytes, const InputParams inputParams)
-{$
-    Assert_c(inputFileName);
-    Assert_c(buffer);
-    Assert_c(readBytes);
-    if (!buffer || !readBytes)
-    {
-        $$$("Null ptr in input data");
-        return ERROR_INIT_INPUT_STREAM;
-    }
-
-    if (!inputFileName)
-    {
-        printf("Error: No input file specified!\n");
-        $$$("Null ptr in input data");
-        return ERROR_INIT_INPUT_STREAM;
-    }
-
-    *readBytes = readFullFile(inputFileName, buffer);
-    if (*readBytes == ASM_ERROR_CODE)
-    {
-        printf("Error: We have some troubles with read code from file:%s\n", inputFileName);
-        
-        $$$("Can't read file");
-        return ERROR_INIT_INPUT_STREAM;
-    }
-    
-    $$ return 0;
-}
-
-/**
-\brief Функция инициализирует поток вывода, основываясь на данных из InputParams
-*/
-int initOutStream(char* outputFileName, FILE** outStreamPtr, char* mode,InputParams inputParams)
-{$
-    Assert_c(outStreamPtr);
-    Assert_c(mode);
-    if (!outStreamPtr || !mode)
-    {
-        $$$("Null ptr in input data");
-        return ERROR_INIT_OUTPUT_STREAM;
-    }
-
-    if (!outputFileName)
-    {
-        printf("Warning: No output file specified. By default result will write into a.out\n");
-        outputFileName = "a.out";
-        inputParams.outputFilename = "a.out";
-    }
-
-    *outStreamPtr = fopen(outputFileName, mode);
-    if (!*outStreamPtr)
-    {
-        printf("Error: We can't open file %s for writing result.\n", outputFileName);
-        $$$("Can't read file");
-        return ERROR_INIT_OUTPUT_STREAM;
-    }
-    if (ferror(*outStreamPtr))
-    {
-        printf("Error: Stream for writing result has error.\n");
-        $$$("Error in stream");
-        return ERROR_INIT_OUTPUT_STREAM;
-    }
-    $$ return 0;
-}
-
-
 
 int main(int argc, char** argv)
 {
     InputParams inputParams;
-    initCallStack();
-    $
     parseConsoleArguments(argc, argv, &inputParams);
-    Logger::Instance().init(inputParams.noLogFileFlag ? NULL : inputParams.logFilename);
 
-    char* buffer = NULL;
-    int errorCode = 0;
-    unsigned inputFileSize = 0;
-    FILE* outStream = NULL;
-    
-    //Смотрим какая программа была выбрана
-    switch (inputParams.programName)
-    {
-        case PROG_COPMILATOR:
-        case PROG_DISASSEMBLER:
-        case PROG_RUN:
-            errorCode |= initOutStream(inputParams.outputFilename, &outStream, inputParams.programName == PROG_DISASSEMBLER ? "w" : "wb", inputParams);
-        case PROG_CPU:
-            errorCode |= initInStream(inputParams.inputFilename, &buffer, &inputFileSize, inputParams);
-            break;
-        case PROG_UNDEFINED:
-            printf("We don't understand what you want to execute ...\nTry to use -h flag to get more information.");
-            logger.~Logger();
-            $$ return 0;
-            break;
-        case PROG_HELPER:
-            run_Helper();
-            logger.~Logger();
-            $$ return 0;
-            break;
-        default:
-            errorCode |= ERROR_JUMP_DEFAULT_CASE_IN_SWITCH;
-            break;
+    auto file_name = inputParams.inputFilename;
+    std::ifstream t(file_name);
+    if(!t.is_open()) {
+        std::cout << "Cant open file: `" << inputParams.inputFilename << "`" << std::endl;
+        return EXIT_FAILURE;
     }
-    if (errorCode)
-    {
-        printf("Error: We have problems with %s stream\n", errorCode & 1 ? "input" : "output");
-        $$$("One stream need repair");
-        logger.~Logger();
-        return errorCode;
-    }
+    using ist = std::istreambuf_iterator<char>;
+    std::string str((ist(t)),ist());
+    auto buffer = str.data();
+    auto n_bytess = str.size();
 
-    #ifdef CPU_GRAPH_MODE
-    //Вспомогательная инициализация
-    if (inputParams.useGraphMode)
-    {
-        glutInit(&argc, argv);
-        glutInitDisplayMode(GLUT_SINGLE);
-    }
-    #endif
+    auto &CPU = CPU::Instance();
+    CPU.init(inputParams);
+    auto ret_code = CPU.run(buffer, n_bytess, inputParams.entryPoint);
+    std::cout << "CPU finished with the code: " << (int)ret_code << " ";
+    std::cout << "(" << getStringByErrorCode(ret_code) << ")";
+    std::cout << std::endl;
+    CPU.dump(stdout);
 
-    //Производим выполнение программы
-    switch (inputParams.programName)
-    {
-        case PROG_COPMILATOR:
-            errorCode |= run_Compilator(buffer, outStream, inputParams) << 4;
-            break;
-        case PROG_DISASSEMBLER:
-            errorCode |= run_Disassembler(buffer, inputFileSize, outStream, inputParams) << 4;
-            break;
-        case PROG_RUN:
-            errorCode |= run_Compilator(buffer, outStream, inputParams) << 4;
-            free(buffer);
-            fclose(outStream);
-            errorCode |= initInStream(inputParams.outputFilename, &buffer, &inputFileSize, inputParams);
-            errorCode |= run_CPU(buffer, inputFileSize, inputParams) << 4;
-            break;
-        case PROG_CPU:
-            errorCode |= run_CPU(buffer, inputFileSize, inputParams) << 4;
-            break;
-        default:
-            errorCode |= ERROR_JUMP_DEFAULT_CASE_IN_SWITCH;
-            break;
-    }
-
-    //glFlush();
-
-    free(buffer);
-    if(outStream)
-        fclose(outStream);
-
-    logger.~Logger();
-    system("pause");
-    $$ return 0;
+    return EXIT_SUCCESS;
 }
