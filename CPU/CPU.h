@@ -3,6 +3,16 @@
 #include "Tools/Argparser.h"
 #include "Profiler/Profiler.h"
 
+struct Arguments
+{
+  size_t ram_size = 0;
+  size_t entry = 0;
+  bool step_by_step = false;
+  char *output_file = nullptr;
+  char *input_file = nullptr;
+};
+
+Arguments parse(int argc, char **argv);
 
 /*
 \brief Коды ошибок, возвращаемые процессором
@@ -31,8 +41,9 @@ class CPU
             static CPU theInstance;
             return theInstance;
         }
-        void init(InputParams inParam);
-        CPUerror run(const char* bytes, ui32 size, ui32 insert_point);
+        void init(const Arguments settings);
+        void run(const char* bytes, ui32 size, ui32 insert_point);
+        CPUerror ret_code();
         void dump(Stream outStream);
         ~CPU();
     private:
@@ -44,4 +55,3 @@ class CPU
 
 
 C_string getStringByErrorCode(CPUerror errorCode);
-

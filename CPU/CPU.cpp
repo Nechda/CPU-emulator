@@ -30,6 +30,7 @@ struct Context
     ui32 pc;
     ui8* RAM = NULL;
     FlatStack stack;
+    CPUerror exit_code;
     static constexpr auto TOTAL_REGS = sizeof(Register) / sizeof(ui32);
 
     ui32* get_reg_ptr(ui32 idx) {
@@ -71,19 +72,19 @@ struct Context
 \note   Если при инициализации структуры возникли ошибки, то полю isValid присваивается значение 0
 Причина возникновения ошибки записывается в лог файл.
 */
-void CPU::init(const InputParams inParam)
+void CPU::init(const Arguments settings)
 {
-    context.ramSize = inParam.memorySize;
+    context.ramSize = settings.ram_size;
     assert(context.ramSize < (32 << 20));
 
     context.RAM = (ui8*)calloc(context.ramSize, sizeof(ui8));
     assert(context.RAM != nullptr);
 
     context.isValid = 1;
-    context.stepByStep = inParam.useStepByStepMode;
+    context.stepByStep = settings.step_by_step;
 }
 
-CPUerror CPU::run(const char* bytes, ui32 size, ui32 insert_point)
+void CPU::run(const char* bytes, ui32 size, ui32 insert_point)
 {
     assert(context.isValid);
     assert(bytes);
@@ -97,7 +98,11 @@ CPUerror CPU::run(const char* bytes, ui32 size, ui32 insert_point)
     // And the top of the stack
     context.Register.esp = size + 1;
 
-    return evaluate();
+    context.exit_code = evaluate();
+}
+
+CPUerror CPU::ret_code() {
+    return context.exit_code;
 }
 
 CPU::~CPU()
