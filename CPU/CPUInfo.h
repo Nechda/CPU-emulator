@@ -3,9 +3,9 @@
 /*
 \brief номера битов в регистре EFLAGS
 */
-#define FLAG_CF  0
-#define FLAG_ZF  6
-#define FLAG_SF  7
+#define FLAG_CF 0
+#define FLAG_ZF 6
+#define FLAG_SF 7
 
 /*
 \brief номера регистров

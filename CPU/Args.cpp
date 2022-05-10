@@ -7,24 +7,16 @@ const char *argp_program_version = "cpu-emulator";
 const char *argp_program_bug_address = "<...>";
 static char doc[] = "Simple cpu emulator";
 static char args_doc[] = "input-file";
-enum {
-    RAM_SIZE_KEY = 256,
-    ENTRYPOINT,
-    STEP_BY_STEP
-};
-static struct argp_option options[] = {
-  {"output",   'o', "FILE", 0, "Output to FILE instead of standard output" },
-  {"ram-size", RAM_SIZE_KEY, "N_BYTES", 0, "Set size of CPU's RAM"},
-  {"entrypoint", ENTRYPOINT, "pc", 0, "Set program counter"},
-  {"step-by-step", STEP_BY_STEP, 0, 0, "Set step by step mode"},
-  { 0 }
-};
+enum { RAM_SIZE_KEY = 256, ENTRYPOINT, STEP_BY_STEP };
+static struct argp_option options[] = {{"output", 'o', "FILE", 0, "Output to FILE instead of standard output"},
+                                       {"ram-size", RAM_SIZE_KEY, "N_BYTES", 0, "Set size of CPU's RAM"},
+                                       {"entrypoint", ENTRYPOINT, "pc", 0, "Set program counter"},
+                                       {"step-by-step", STEP_BY_STEP, 0, 0, "Set step by step mode"},
+                                       {0}};
 
-static error_t parse_opt(int key, char *arg, argp_state *state)
-{
+static error_t parse_opt(int key, char *arg, argp_state *state) {
     Arguments *arguments = (Arguments *)state->input;
-    switch (key)
-    {
+    switch (key) {
     case 'o':
         arguments->output_file = arg;
         break;
@@ -42,13 +34,13 @@ static error_t parse_opt(int key, char *arg, argp_state *state)
     default:
         return ARGP_ERR_UNKNOWN;
     }
-  return 0;
+    return 0;
 }
-static struct argp argp = { options, parse_opt, args_doc, doc };
+static struct argp argp = {options, parse_opt, args_doc, doc};
 
 Arguments parse(int argc, char **argv) {
     struct Arguments arguments;
     arguments.output_file = "a.out";
-    argp_parse (&argp, argc, argv, 0, 0, &arguments);
+    argp_parse(&argp, argc, argv, 0, 0, &arguments);
     return arguments;
 }
